@@ -1,0 +1,1920 @@
+[
+  {
+    "url": null,
+    "title": "Finding &amp; removing duplicate photos",
+    "text": "Hi all,\n\n  \nI am collecting photos from family for someone's funeral. The problem is that a lot of photos I'm being sent are duplicates and it's too many photos to keep track of on my own. I've added all of the photos from my computer to an album on Google Photos, but the duplicates are still there.\n\n  \nI cannot find a single article or Reddit post detailing how to remove the duplicate photos with Google Photos that doesn't involve 3rd party software. iOS automatically finds duplicates and merges them \"intelligently\" (using the higher quality dupes), so why can't Google Photos?\n\n\nMaybe I'm just stupid and not seeing the option anywhere?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "I made a script to find Google Photos that are consuming storage and automatically add them to an album",
+    "text": "I built a small browser-console script to help with a Google Photos cleanup/migration problem, and figured it might help someone else.\n\n# The problem\n\nI have a large Google Photos library where some photos/videos:\n\n* **do not count toward Google account storage**\n* while others were uploaded from Android in **Original quality and do consume storage**\n\nIn Google Photos → Info, the difference looks roughly like this:\n\n**Does NOT consume storage:**\n\n* Uploaded from Android device\n* Backed up\n* Original quality\n* `This item doesn't take up space in your account storage.`\n\n**Does consume storage:**\n\n* Uploaded from Android device\n* `Backed up (4.6 MB)`\n* Original quality\n* **No** “doesn't take up space” message\n\nI wanted to identify the second category automatically and add those items to an album so I could deal with them separately.\n\n# What the script does\n\nStarting from an individual photo in the Google Photos web viewer, the script:\n\n1. Opens/reads the **Info** panel.\n2. Makes sure it reads metadata for the **current photo only**. This matters because Google Photos preloads previous/next photos and keeps their Info panels in the DOM.\n3. Classifies the item as:\n   * `FREE_STORAGE`\n   * `SPACE_CONSUMING_ANDROID`\n   * `OTHER`\n4. If it is a space-consuming Android upload, it:\n   * opens **More options**\n   * chooses **Add to album**\n   * waits for the album list to load\n   * adds it to the target album\n5. Goes to the next photo.\n6. Continues until there are no more photos or navigation starts looping.\n\nIt also retries slow album-picker loads because Google Photos can get noticeably slower during long runs.\n\n# Important before running\n\nThis uses Google Photos' **web UI / DOM**, not an official API.\n\nThat means Google can change their HTML at any time and break it.\n\nI strongly recommend:\n\n* Create a dedicated album first.\n* Put its album ID into `TARGET_ALBUM_ID`.\n* Start with:\n\n&amp;#8203;\n\n    const DRY_RUN = true;\n    \n\n* Watch the console for a while and make sure classification is correct.\n* Only then change it to:\n\n&amp;#8203;\n\n    const DRY_RUN = false;\n    \n\nAlso: don't run random JavaScript from Reddit without reading it first. Review the code and understand what it clicks.\n\n# How to get the album ID\n\nOpen the destination album.\n\nIf the URL looks like:\n\n    https://photos.google.com/album/AF1QipXXXXXXXXXXXXXXXXXXXXXXXX\n    \n\nthe part after `/album/` is the album ID.\n\nPut that here:\n\n    const TARGET_ALBUM_ID =\n      \"YOUR_ALBUM_ID_HERE\";\n    \n\n# Script\n\n    (async function () {\n      const TARGET_ALBUM_ID =\n        \"YOUR_ALBUM_ID_HERE\";\n    \n      // true  = classify only\n      // false = actually add matching photos\n      const DRY_RUN = true;\n    \n      // =========================================================\n      // TIMING\n      // =========================================================\n    \n      const INFO_INITIAL_WAIT_MS = 2500;\n      const INFO_LOAD_TIMEOUT_MS = 12000;\n      const INFO_RETRY_WAIT_MS = 1200;\n    \n      const PHOTO_CHANGE_TIMEOUT_MS = 10000;\n    \n      const ALBUM_INITIAL_WAIT_MS = 1500;\n      const ALBUM_LOAD_TIMEOUT_MS = 20000;\n      const ALBUM_POLL_MS = 500;\n    \n      const MENU_OPEN_WAIT_MS = 500;\n      const AFTER_ADD_TO_ALBUM_CLICK_MS = 1200;\n      const AFTER_ADD_WAIT_MS = 2000;\n    \n      const BETWEEN_SKIPS_MS = 350;\n    \n      const sleep = ms =&gt;\n        new Promise(resolve =&gt; setTimeout(resolve, ms));\n    \n      // =========================================================\n      // GENERIC HELPERS\n      // =========================================================\n    \n      async function waitFor(\n        fn,\n        timeout = 5000,\n        interval = 100\n      ) {\n        const deadline =\n          Date.now() + timeout;\n    \n        while (Date.now() &lt; deadline) {\n          try {\n            const value = fn();\n    \n            if (value) {\n              return value;\n            }\n          } catch (_) {}\n    \n          await sleep(interval);\n        }\n    \n        return null;\n      }\n    \n      function normalize(text) {\n        return (text || \"\")\n          .replace(/[’‘]/g, \"'\")\n          .replace(/\\s+/g, \" \")\n          .trim();\n      }\n    \n      function isActuallyVisible(el) {\n        if (!el) {\n          return false;\n        }\n    \n        const style =\n          getComputedStyle(el);\n    \n        const rect =\n          el.getBoundingClientRect();\n    \n        return (\n          style.display !== \"none\" &amp;&amp;\n          style.visibility !== \"hidden\" &amp;&amp;\n          rect.width &gt; 0 &amp;&amp;\n          rect.height &gt; 0\n        );\n      }\n    \n      function isRendered(el) {\n        if (!el) {\n          return false;\n        }\n    \n        const style =\n          getComputedStyle(el);\n    \n        return (\n          style.display !== \"none\" &amp;&amp;\n          style.visibility !== \"hidden\"\n        );\n      }\n    \n      // =========================================================\n      // CURRENT PHOTO\n      // =========================================================\n    \n      function getCurrentPhotoId() {\n        return (\n          location.pathname\n            .match(/\\/photo\\/([^/?#]+)/)?.[1] ||\n          null\n        );\n      }\n    \n      // =========================================================\n      // INFO PANEL\n      // =========================================================\n    \n      function findCurrentInfoPanel() {\n        const photoId =\n          getCurrentPhotoId();\n    \n        if (!photoId) {\n          return null;\n        }\n    \n        const candidates = [\n          ...document.querySelectorAll(\n            'c-wiz[jsrenderer=\"OHoaCc\"]'\n          )\n        ].filter(el =&gt; {\n          const dataP =\n            el.getAttribute(\"data-p\") || \"\";\n    \n          return dataP.includes(photoId);\n        });\n    \n        if (!candidates.length) {\n          return null;\n        }\n    \n        return (\n          candidates.find(isRendered) ||\n          candidates.find(\n            el =&gt;\n              el.style.display !== \"none\"\n          ) ||\n          null\n        );\n      }\n    \n      function infoPanelHasContent(panel) {\n        if (!panel) {\n          return false;\n        }\n    \n        const text =\n          normalize(panel.innerText);\n    \n        return (\n          text.length &gt; 20 &amp;&amp;\n          (\n            text.includes(\"Details\") ||\n            /Backed up/i.test(text) ||\n            /Uploaded from/i.test(text) ||\n            /Filename:/i.test(text) ||\n            /\\.(jpg|jpeg|png|heic|webp|gif|mp4|mov)\\b/i\n              .test(text)\n          )\n        );\n      }\n    \n      function findOpenInfoButton() {\n        return (\n          document.querySelector(\n            'button[aria-label=\"Open info\"]'\n          ) ||\n          document.querySelector(\n            'button[aria-label=\"Info\"]'\n          ) ||\n          null\n        );\n      }\n    \n      async function waitForCurrentInfoPanel(\n        timeout = INFO_LOAD_TIMEOUT_MS\n      ) {\n        return await waitFor(\n          () =&gt; {\n            const panel =\n              findCurrentInfoPanel();\n    \n            return (\n              panel &amp;&amp;\n              infoPanelHasContent(panel)\n                ? panel\n                : null\n            );\n          },\n          timeout,\n          150\n        );\n      }\n    \n      async function ensureCurrentInfoPanel() {\n        const photoId =\n          getCurrentPhotoId();\n    \n        if (!photoId) {\n          return null;\n        }\n    \n        let panel =\n          await waitForCurrentInfoPanel(\n            INFO_INITIAL_WAIT_MS\n          );\n    \n        if (panel) {\n          return panel;\n        }\n    \n        const openButton =\n          findOpenInfoButton();\n    \n        if (openButton) {\n          console.log(\n            \"Opening Info panel...\"\n          );\n    \n          try {\n            openButton.click();\n          } catch (error) {\n            console.warn(\n              \"Info button click failed:\",\n              error\n            );\n          }\n        }\n    \n        panel =\n          await waitForCurrentInfoPanel(\n            INFO_LOAD_TIMEOUT_MS\n          );\n    \n        if (panel) {\n          return panel;\n        }\n    \n        console.warn(\n          \"Info panel did not load. Retrying once...\"\n        );\n    \n        await sleep(\n          INFO_RETRY_WAIT_MS\n        );\n    \n        const retryButton =\n          findOpenInfoButton();\n    \n        if (retryButton) {\n          try {\n            retryButton.click();\n          } catch (_) {}\n        }\n    \n        return await waitForCurrentInfoPanel(\n          INFO_LOAD_TIMEOUT_MS\n        );\n      }\n    \n      function readCurrentInfo(panel) {\n        return normalize(\n          panel?.innerText || \"\"\n        );\n      }\n    \n      // =========================================================\n      // CLASSIFICATION\n      // =========================================================\n    \n      function classify(info) {\n        const lower =\n          info.toLowerCase();\n    \n        const isAndroid =\n          lower.includes(\n            \"uploaded from android device\"\n          );\n    \n        const isBackedUp =\n          lower.includes(\"backed up\");\n    \n        const doesNotUseStorage =\n          lower.includes(\n            \"doesn't take up space in your account storage\"\n          );\n    \n        const fileSizeMatch =\n          info.match(\n            /Backed up\\s*\\(([^)]+)\\)/i\n          );\n    \n        const filenameMatch =\n          info.match(\n            /([^\\s]+\\.(?:jpg|jpeg|png|heic|gif|webp|mp4|mov))\\b/i\n          );\n    \n        const common = {\n          isAndroid,\n          fileSize:\n            fileSizeMatch?.[1] || null,\n          filename:\n            filenameMatch?.[1] || null\n        };\n    \n        if (doesNotUseStorage) {\n          return {\n            type: \"FREE_STORAGE\",\n            ...common\n          };\n        }\n    \n        if (\n          isAndroid &amp;&amp;\n          isBackedUp\n        ) {\n          return {\n            type:\n              \"SPACE_CONSUMING_ANDROID\",\n            ...common\n          };\n        }\n    \n        return {\n          type: \"OTHER\",\n          ...common\n        };\n      }\n    \n      // =========================================================\n      // VIEWER TOOLBAR\n      // =========================================================\n    \n      function findViewerInfoButton() {\n        const buttons = [\n          ...document.querySelectorAll(\n            [\n              'button[aria-label=\"Open info\"]',\n              'button[aria-label=\"Close info\"]',\n              'button[aria-label=\"Info\"]'\n            ].join(\",\")\n          )\n        ];\n    \n        return (\n          buttons.find(isActuallyVisible) ||\n          buttons.at(-1) ||\n          null\n        );\n      }\n    \n      function getViewerToolbar() {\n        const infoButton =\n          findViewerInfoButton();\n    \n        return (\n          infoButton?.closest(\n            '[role=\"menubar\"]'\n          ) ||\n          null\n        );\n      }\n    \n      async function openMoreOptions() {\n        const toolbar =\n          getViewerToolbar();\n    \n        let button = null;\n    \n        if (toolbar) {\n          button =\n            toolbar.querySelector(\n              'button[aria-label=\"More options\"]'\n            );\n        }\n    \n        if (!button) {\n          const candidates = [\n            ...document.querySelectorAll(\n              'button[aria-label=\"More options\"]'\n            )\n          ];\n    \n          button =\n            candidates.at(-1) ||\n            null;\n        }\n    \n        if (!button) {\n          throw new Error(\n            \"Viewer 'More options' button not found.\"\n          );\n        }\n    \n        button.click();\n    \n        await sleep(\n          MENU_OPEN_WAIT_MS\n        );\n      }\n    \n      // =========================================================\n      // ADD TO ALBUM\n      // =========================================================\n    \n      async function clickAddToAlbum() {\n        const item = await waitFor(\n          () =&gt; {\n            const roleItem = [\n              ...document.querySelectorAll(\n                '[role=\"menuitem\"]'\n              )\n            ]\n              .filter(isActuallyVisible)\n              .find(el =&gt;\n                /^\\s*Add to album\\s*$/i.test(\n                  el.innerText || \"\"\n                )\n              );\n    \n            if (roleItem) {\n              return roleItem;\n            }\n    \n            const textNode = [\n              ...document.querySelectorAll(\n                \"div,span\"\n              )\n            ]\n              .filter(isActuallyVisible)\n              .find(el =&gt;\n                /^\\s*Add to album\\s*$/i.test(\n                  el.innerText || \"\"\n                )\n              );\n    \n            if (!textNode) {\n              return null;\n            }\n    \n            return (\n              textNode.closest(\n                [\n                  '[role=\"menuitem\"]',\n                  \"button\",\n                  '[role=\"button\"]',\n                  \"[tabindex]\"\n                ].join(\",\")\n              ) ||\n              textNode\n            );\n          },\n          6000,\n          150\n        );\n    \n        if (!item) {\n          throw new Error(\n            \"'Add to album' menu item not found.\"\n          );\n        }\n    \n        item.click();\n    \n        await sleep(\n          AFTER_ADD_TO_ALBUM_CLICK_MS\n        );\n      }\n    \n      // =========================================================\n      // TARGET ALBUM\n      // =========================================================\n    \n      function findTargetAlbumOutsideNavigation() {\n        const selectors = [\n          `[data-media-key=\"${TARGET_ALBUM_ID}\"]`,\n          `[data-id=\"${TARGET_ALBUM_ID}\"]`,\n          `[data-album-id=\"${TARGET_ALBUM_ID}\"]`,\n          `a[href*=\"/album/${TARGET_ALBUM_ID}\"]`\n        ];\n    \n        let matches = [];\n    \n        for (const selector of selectors) {\n          matches.push(\n            ...document.querySelectorAll(\n              selector\n            )\n          );\n        }\n    \n        matches =\n          [...new Set(matches)]\n            .filter(\n              isActuallyVisible\n            )\n            .filter(el =&gt;\n              !el.closest(\n                [\n                  \"nav\",\n                  '[role=\"navigation\"]',\n                  \".RSjvib\"\n                ].join(\",\")\n              )\n            );\n    \n        if (!matches.length) {\n          return null;\n        }\n    \n        function score(el) {\n          let s = 0;\n    \n          if (el.closest('[role=\"dialog\"]'))\n            s += 10;\n    \n          if (el.closest('[aria-modal=\"true\"]'))\n            s += 10;\n    \n          if (el.closest('[role=\"listbox\"]'))\n            s += 8;\n    \n          if (el.closest('[role=\"menu\"]'))\n            s += 6;\n    \n          if (el.closest('[role=\"grid\"]'))\n            s += 4;\n    \n          return s;\n        }\n    \n        matches.sort(\n          (a, b) =&gt;\n            score(b) - score(a)\n        );\n    \n        return matches[0];\n      }\n    \n      async function selectAlbumById() {\n        await sleep(\n          ALBUM_INITIAL_WAIT_MS\n        );\n    \n        console.log(\n          \"Waiting for target album to load...\"\n        );\n    \n        const album =\n          await waitFor(\n            () =&gt;\n              findTargetAlbumOutsideNavigation(),\n            ALBUM_LOAD_TIMEOUT_MS,\n            ALBUM_POLL_MS\n          );\n    \n        if (!album) {\n          console.warn(\n            `Target album did not appear within ${\n              ALBUM_LOAD_TIMEOUT_MS / 1000\n            } seconds.`\n          );\n    \n          return false;\n        }\n    \n        console.log(\n          \"Target album loaded:\",\n          (album.innerText || \"\").trim()\n        );\n    \n        const clickable =\n          album.matches(\n            [\n              \"button\",\n              '[role=\"button\"]',\n              \"a\",\n              \"[tabindex]\"\n            ].join(\",\")\n          )\n            ? album\n            : (\n                album.closest(\n                  [\n                    \"button\",\n                    '[role=\"button\"]',\n                    \"a\",\n                    \"[tabindex]\"\n                  ].join(\",\")\n                ) ||\n                album\n              );\n    \n        clickable.click();\n    \n        await sleep(\n          AFTER_ADD_WAIT_MS\n        );\n    \n        return true;\n      }\n    \n      // =========================================================\n      // ALBUM RETRY\n      // =========================================================\n    \n      function pressEscape() {\n        document.dispatchEvent(\n          new KeyboardEvent(\n            \"keydown\",\n            {\n              key: \"Escape\",\n              code: \"Escape\",\n              keyCode: 27,\n              which: 27,\n              bubbles: true\n            }\n          )\n        );\n      }\n    \n      async function addCurrentPhotoToTargetAlbumWithRetry() {\n        for (\n          let attempt = 1;\n          attempt &lt;= 2;\n          attempt++\n        ) {\n          try {\n            console.log(\n              `Album add attempt ${attempt}/2...`\n            );\n    \n            await openMoreOptions();\n    \n            await clickAddToAlbum();\n    \n            const added =\n              await selectAlbumById();\n    \n            if (added) {\n              return true;\n            }\n          }\n    \n          catch (error) {\n            console.warn(\n              `Album add attempt ${attempt} failed:`,\n              error\n            );\n          }\n    \n          if (attempt &lt; 2) {\n            console.warn(\n              \"Retrying album picker once...\"\n            );\n    \n            pressEscape();\n    \n            await sleep(1500);\n          }\n        }\n    \n        return false;\n      }\n    \n      // =========================================================\n      // NEXT PHOTO\n      // =========================================================\n    \n      async function sendArrowRight() {\n        if (\n          document.activeElement &amp;&amp;\n          typeof document.activeElement.blur ===\n            \"function\"\n        ) {\n          document.activeElement.blur();\n        }\n    \n        await sleep(150);\n    \n        document.body.dispatchEvent(\n          new KeyboardEvent(\n            \"keydown\",\n            {\n              key: \"ArrowRight\",\n              code: \"ArrowRight\",\n              keyCode: 39,\n              which: 39,\n              bubbles: true,\n              cancelable: true\n            }\n          )\n        );\n    \n        document.body.dispatchEvent(\n          new KeyboardEvent(\n            \"keyup\",\n            {\n              key: \"ArrowRight\",\n              code: \"ArrowRight\",\n              keyCode: 39,\n              which: 39,\n              bubbles: true,\n              cancelable: true\n            }\n          )\n        );\n      }\n    \n      async function waitForPhotoChange(oldId) {\n        return await waitFor(\n          () =&gt; {\n            const id =\n              getCurrentPhotoId();\n    \n            return (\n              id &amp;&amp;\n              id !== oldId\n                ? id\n                : null\n            );\n          },\n          PHOTO_CHANGE_TIMEOUT_MS,\n          150\n        );\n      }\n    \n      async function nextItem() {\n        const oldId =\n          getCurrentPhotoId();\n    \n        if (!oldId) {\n          return false;\n        }\n    \n        const nextButton =\n          document.querySelector(\n            '[role=\"button\"][aria-label=\"View next photo\"]'\n          ) ||\n          document.querySelector(\n            '[aria-label=\"View next photo\"]'\n          ) ||\n          document.querySelector(\n            '[aria-label=\"Next\"]'\n          );\n    \n        let newId = null;\n    \n        if (\n          nextButton &amp;&amp;\n          nextButton.getAttribute(\n            \"aria-disabled\"\n          ) !== \"true\"\n        ) {\n          console.log(\n            \"Navigating using Next-photo DOM control.\"\n          );\n    \n          try {\n            nextButton.click();\n          } catch (_) {}\n    \n          newId =\n            await waitForPhotoChange(\n              oldId\n            );\n        }\n    \n        if (!newId) {\n          console.warn(\n            \"DOM Next control unavailable or did not navigate. Trying ArrowRight...\"\n          );\n    \n          await sendArrowRight();\n    \n          newId =\n            await waitForPhotoChange(\n              oldId\n            );\n        }\n    \n        if (!newId) {\n          return false;\n        }\n    \n        console.log(\n          `Moved to next photo: ${newId}`\n        );\n    \n        return true;\n      }\n    \n      // =========================================================\n      // MAIN\n      // =========================================================\n    \n      const seenPhotoIds =\n        new Set();\n    \n      let i = 0;\n    \n      let freeCount = 0;\n      let spaceCount = 0;\n      let otherCount = 0;\n      let addedCount = 0;\n    \n      console.log(\n        `Starting scan… DRY_RUN=${DRY_RUN}`\n      );\n    \n      while (true) {\n        try {\n          const photoId =\n            getCurrentPhotoId();\n    \n          if (!photoId) {\n            console.warn(\n              \"No current photo ID — stopping.\"\n            );\n    \n            break;\n          }\n    \n          if (\n            seenPhotoIds.has(photoId)\n          ) {\n            console.warn(\n              \"Repeated photo ID — stopping to prevent a loop.\"\n            );\n    \n            break;\n          }\n    \n          seenPhotoIds.add(\n            photoId\n          );\n    \n          console.log(\n            `Item ${i}: loading Info...`\n          );\n    \n          const panel =\n            await ensureCurrentInfoPanel();\n    \n          if (!panel) {\n            console.error(\n              `Item ${i}: unable to load Info. Stopping so the item isn't skipped.`\n            );\n    \n            break;\n          }\n    \n          const info =\n            readCurrentInfo(panel);\n    \n          const result =\n            classify(info);\n    \n          console.log({\n            item: i,\n            filename:\n              result.filename,\n            classification:\n              result.type,\n            fileSize:\n              result.fileSize\n          });\n    \n          if (\n            result.type ===\n            \"FREE_STORAGE\"\n          ) {\n            freeCount++;\n    \n            console.log(\n              `Item ${i}: FREE → SKIP`\n            );\n    \n            await sleep(\n              BETWEEN_SKIPS_MS\n            );\n          }\n    \n          else if (\n            result.type ===\n            \"SPACE_CONSUMING_ANDROID\"\n          ) {\n            spaceCount++;\n    \n            console.log(\n              `Item ${i}: uses storage${\n                result.fileSize\n                  ? ` (${result.fileSize})`\n                  : \"\"\n              } → ${\n                DRY_RUN\n                  ? \"WOULD ADD\"\n                  : \"ADDING\"\n              }`\n            );\n    \n            if (!DRY_RUN) {\n              const added =\n                await addCurrentPhotoToTargetAlbumWithRetry();\n    \n              if (!added) {\n                console.error(\n                  \"Album addition failed twice. Stopping.\"\n                );\n    \n                break;\n              }\n    \n              addedCount++;\n            }\n          }\n    \n          else {\n            otherCount++;\n    \n            console.log(\n              `Item ${i}: OTHER → SKIP`\n            );\n    \n            await sleep(\n              BETWEEN_SKIPS_MS\n            );\n          }\n    \n          const moved =\n            await nextItem();\n    \n          if (!moved) {\n            console.log(\n              \"Could not navigate to another photo — stopping.\"\n            );\n    \n            break;\n          }\n    \n          await sleep(400);\n    \n          i++;\n        }\n    \n        catch (error) {\n          console.error(\n            `Stopped at item ${i}:`,\n            error\n          );\n    \n          break;\n        }\n      }\n    \n      console.log(\n        \"Done.\",\n        {\n          processed:\n            seenPhotoIds.size,\n    \n          freeStorage:\n            freeCount,\n    \n          spaceConsumingAndroid:\n            spaceCount,\n    \n          other:\n            otherCount,\n    \n          addedToAlbum:\n            addedCount,\n    \n          dryRun:\n            DRY_RUN\n        }\n      );\n    })();\n    \n\n# Running it\n\n1. Open `photos.google.com`.\n2. Open an individual photo.\n3. Open Chrome/Edge DevTools → **Console**.\n4. Replace `YOUR_ALBUM_ID_HERE`.\n5. Leave `DRY_RUN = true` initially.\n6. Paste the script.\n7. Verify several classifications manually.\n8. If everything looks right, switch to `DRY_RUN = false`.\n\nThis has worked for my use case, but Google Photos' frontend is undocumented and can change, so treat this as a community workaround rather than a permanent solution.\n\nIf people improve the selectors/reliability, please post the changes — I'd love for this to become a more robust community script.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Takeout - batch-finding photos/videos missing creation date metadata",
+    "text": "I'm in the process of moving my photos and videos out of Google Photos. I have some media that was received through AirDrop, WhatsApp, and Facebook Messenger where the original creation date is only stored in the accompanying JSON files.\n\nIs there an easy way to batch-isolate these specific photos and videos so I can run a third-party tool on them to write the metadata from the JSON files back onto the actual files?\n\nOr is it generally safe to run the third-party metadata tool on **all** my photos and videos, even though most of them already have the correct metadata?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wqflmc/i_made_a_script_to_find_google_photos_that_are/pc465ij/",
+    "title": "",
+    "text": "Google Photos Toolkit potentially does this more elegantly using the unofficial web API rather than the DOM: https://github.com/xob0t/Google-Photos-Toolkit",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wqflmc/i_made_a_script_to_find_google_photos_that_are/pc48prg/",
+    "title": "",
+    "text": "I did try that, but I noticed that it was also moving photos/videos that are already not considered towards storage . it was caring about the \\`consumption\\`",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wqflmc/i_made_a_script_to_find_google_photos_that_are/pc41h1e/",
+    "title": "",
+    "text": "I'll try this, thanks",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1go8y4n/finding_removing_duplicate_photos/mfaak04/",
+    "title": "",
+    "text": "They want you to use more space. That's why they make it virtually impossible. There is no reason why AI couldn't figure this out. I could see maybe a few years ago but now they could absolutely make this accessible.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1go8y4n/finding_removing_duplicate_photos/mh2m88m/",
+    "title": "",
+    "text": "this is bothering me because i just moved back to iphone and copied all my google photos stuff to icloud and icloud found a metric crapton of duplicates and deleted them but my (now full) google photos cant???",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1go8y4n/finding_removing_duplicate_photos/mq2ladb/",
+    "title": "",
+    "text": "Bingo, of course they do.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1go8y4n/finding_removing_duplicate_photos/lwgstye/",
+    "title": "",
+    "text": "You're not stupid, Google Photos is, at least in this regard. It's simply not a feature.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1go8y4n/finding_removing_duplicate_photos/mb4zokw/",
+    "title": "",
+    "text": "see this is the sort of thing I want AI to help with. if google photos can tell that all my photos of a specific person are the same person, then it should be able to tell when I have multiples of the SAME PHOTO",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1go8y4n/finding_removing_duplicate_photos/n56hc82/",
+    "title": "",
+    "text": "I used the chrome web extension \"Google Photos Duplicate Remover\" and it worked well enough. Saved me lots of time",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1go8y4n/finding_removing_duplicate_photos/n84lu5q/",
+    "title": "",
+    "text": "To really make it work, you have to purchase it one time, but best solution I have found by far!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1go8y4n/finding_removing_duplicate_photos/lwgt23g/",
+    "title": "",
+    "text": "One issue is technical.. A photo that's even one byte off is no longer _actually_ a duplicate from a computer's perspective. This happens a lot when photos get bounced around and reshared; all that compression takes its toll. \n\nGoogle Photos does not offer duplicate detection from a visual perspective. Most tools require you to download everything and run locally on a computer.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1go8y4n/finding_removing_duplicate_photos/lwgsdf3/",
+    "title": "",
+    "text": "usually this happens automatically. maybe they aren't truly duplicates but slightly different versions or versions that have been compressed differently",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1go8y4n/finding_removing_duplicate_photos/mi8kfh8/",
+    "title": "",
+    "text": "Here's a straight copy of a Google Admin's reply:\n\n\"My response is composed of information found in various Google Product Help Centers and is, to the best of my knowledge, accurate as of July 17, 2023.\n\nThere is, to the best of my knowledge, no such option available in Google Photos, but...  \nthese suggestions may be of help.\n\n 1. Use the \"Search\" bar\n\nThe most straightforward way to find duplicate photos is to use the \"Search\" bar at the top of the Google Photos interface. Simply type in a keyword or phrase that is likely to be found in one of the duplicate photos, such as the name of a person or place. Google Photos will then return a list of all the photos that match your search criteria\n\n 2. Use the \"Filters\" feature\n\nThe \"Filters\" feature in Google Photos can also be used to find duplicate photos. To use this feature, click on the three dots in the top right corner of the Google Photos interface and select \"Filters\". From here, you can select a variety of criteria to filter your photos, such as date, location, and file size. This can help you to narrow down the list of photos that you need to check for duplicates.\n\n 3. Use a third-party app\n\nThere are also a number of third-party apps that can be used to find duplicate photos in Google Photos. These apps typically work by comparing the metadata of your photos, such as the file size, date, and location. This can help them to identify duplicate photos that might not be obvious to the naked eye.\n\nHere some of the third-party apps that you can use to find duplicate photos in Google Photos:\n\n* DupliSafe: This app is available for both Android and iOS devices. It can scan your Google Photos library for duplicate photos and then help you to delete them.\n* Google Photos Duplicate Finder: This app is also available for both Android and iOS devices. It uses a variety of criteria to find duplicate photos, including file size, date, and location.\n* PhotoSweeper: This app is only available for Windows and macOS devices. It can scan your Google Photos library for duplicate photos and then help you to delete them.\"\n\n\\_\\_\\_\\_\\_\\_\n\nHope this helps!\n\nWill report back once I've used the above mentioned apps!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vjmvm2/takeout_batchfinding_photosvideos_missing/p2nwdcp/",
+    "title": "",
+    "text": "&gt;Is there an easy way to batch-isolate these specific photos\n\nDifferent apps use different naming conventions, so if you can figure them out you can create a filename filter.  For example WhatsApp seems to add -WA0000.JPG or similar to the filename.\n\n&gt;Or is it generally safe to run the third-party metadata tool on all my photos\n\nDepends on the tool.  Most of them are vibe coded slop made by people who don't fully understand how EXIF metadata works, so personally I would try to avoid it when it's not needed, especially if most of your files have the metadata intact anyways.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vjmvm2/takeout_batchfinding_photosvideos_missing/p4z6eyy/",
+    "title": "",
+    "text": "Filename filtering gets you most of the WhatsApp/Messenger stuff since those use fairly consistent patterns, but AirDrop doesn't rename anything, so you'd miss those. More reliable is to go by what's actually missing — filter on files with no DateTimeOriginal rather than trying to guess from the name.\n\nOn running it across everything: the date part is usually fine, files that already have a correct capture date just get the same value written back. What I'd be more careful about is whether the tool rewrites the whole file or only the tag — some of them recompress or drop other EXIF along the way. Worth running it on a copy of a couple hundred files first and checking the output before letting it near the full export.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vjmvm2/takeout_batchfinding_photosvideos_missing/p6ycjn1/",
+    "title": "",
+    "text": "The safest approach is to avoid modifying the only copy of the archive.\n\n\n\n  I’d keep the original Takeout ZIPs untouched, process everything into a separate output folder, and only apply JSON dates when the embedded\n\n  metadata is missing or when the Google Photos value is clearly newer. The tool should also produce a report so you can review what changed.\n\n\n\n  Disclosure: I’m building a Windows app called Takeout Rescue for this exact workflow. It accepts the Takeout ZIPs directly, matches the JSON\n\n  sidecars, handles photos and videos, writes to a separate output folder, and verifies the result afterward.\n\n  [https://takeoutrescue.ukilabs.com/](https://takeoutrescue.ukilabs.com/)",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Easy way to find and delete all photo \"videos\" after Takeaway download",
+    "text": "So I've finally gotten around to downloading my 500gb of photos and videos from Google Photos via Takeaway. Worked great. Unzipped the entire thing and deleted all .json files. \n\nNow I'm stuck with these \"photo videos\", you know those ones that allow you to select the best shot. It's just too much to trawl through nearly 100k photos and delete the video file individually - I can't just filter by .avi or .mp4 etc because I want to make sure I can double check some throwaway video snaps or edits before using Bridge to properly rename/file/categorise and move on from paying Google for cloud storage permanently. \n\nSurely there has to be some way to filter these specific videos from normally shot videos?\n\nWhile I'm at it, what is the best free program to find duplicate photos since I have folders of specific photos and the folders sorted by year (as per Takeaway) and I'd like to just quickly sort them all out cleanly.\n\nKinda crazy how we have all this tech and there's no truly simple way to archive and sort without going through convoluted, multiple program routes. \n\nThanks in advance. Appreciate you!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Any way to find photos NOT in albums?",
+    "text": "I have 64.5G worth of photos in my Google Photos / Google One account. I have no idea how many there actually are.\n\nMost are in albums, but there's still a lot that aren't.\n\nIs there a way to show the ones that aren't in an album so that I can categorize them appropriately?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vt386b/easy_way_to_find_and_delete_all_photo_videos/p4q6r8g/",
+    "title": "",
+    "text": "It depends on what brand of phone you took the motion photos with. Pixels for example add .MP before the .jpg",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vt386b/easy_way_to_find_and_delete_all_photo_videos/p4rbsuy/",
+    "title": "",
+    "text": "Google pixel all the way. That's good info thank you!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vt386b/easy_way_to_find_and_delete_all_photo_videos/p4s10xm/",
+    "title": "",
+    "text": "The current MP format has the video embedded in the jpg, so these must be from an older standard.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vt386b/easy_way_to_find_and_delete_all_photo_videos/p4xgl20/",
+    "title": "",
+    "text": "Well, I have a pixel 9 pro and it's got three files for every shot - a JPG, a burst video and a .json. The .json is easy to remove from the equation but the short videos are doing my head in because there are also a few short videos I would like to find and keep that are either in lower resolution or just short funny reactions from precious people. So simply sorting by file size doesn't work. \n\nI've had pixel 1, 3, iPhone something (8?) which was utter garbage (I'm a photographer and ex wanted me to be apple so she could video call me properly 🤦🏼‍♂️ - seriously pixel beats iPhone for camera quality) then 7 and now 9. \n\nSo yes. Even the most recent shots have that burst video in the same file name as the OG photo but saved as a separate file which is in video format.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vt386b/easy_way_to_find_and_delete_all_photo_videos/p4z9mp1/",
+    "title": "",
+    "text": "In the other post I linked someone said that Motion photos / Live Shot videos might be a lower resolution to regular videos. I can’t get a Motion photo (.MP.jpg) to save as a separate video like you, but I did burst / live shot (.LS.mp4) by holding down the shutter and the resolution of this was 1080x1440 instead of 1080x1920. In Windows Explorer you can add the Frame Height and Frame Width columns and sort by those.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vt386b/easy_way_to_find_and_delete_all_photo_videos/p4zedzg/",
+    "title": "",
+    "text": "Ooo ok that's a good piece of info! Thanks, still sifting through the folders and cleaning up the obvious trash but I'll report back. Been a hell of a week, everyone seems frazzled. \n\nAppreciate you.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vt386b/easy_way_to_find_and_delete_all_photo_videos/p4r6vb2/",
+    "title": "",
+    "text": "Google takeout.  Feels like the last 🖕from google  i got 16 4gb files ofpics   i just deleted the json files and left it at that",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vt386b/easy_way_to_find_and_delete_all_photo_videos/p4rbvkh/",
+    "title": "",
+    "text": "Yeah with you there. Just glad I COULD get that 500gb off without any BS!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vt386b/easy_way_to_find_and_delete_all_photo_videos/p4rzoq6/",
+    "title": "",
+    "text": "The folders by year should be complete. The items in albums will be duplicates.\n\nIn terms of the motion photos you need to identify videos with the same name as jpgs in each folder. Here’s some suggestions: [https://www.reddit.com/r/datacurator/s/2A8YumvWf6](https://www.reddit.com/r/datacurator/s/2A8YumvWf6)[.](https://www.reddit.com/r/datacurator/s/2A8YumvWf6)\n\nThat should be safe if the files are named by date. I’m not sure how Takeout handles a motion photo and a completely different video with the same name. Hopefully when renamed the linked jpg and video are kept with the same name.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vt386b/easy_way_to_find_and_delete_all_photo_videos/p4u75gf/",
+    "title": "",
+    "text": "Visipics free software to find duplicates",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1urhq80/any_way_to_find_photos_not_in_albums/owg1bhf/",
+    "title": "",
+    "text": "Google Photos Toolkit [https://github.com/xob0t/Google-Photos-Toolkit](https://github.com/xob0t/Google-Photos-Toolkit/)[.](https://github.com/xob0t/Google-Photos-Toolkit/)\n\nOr in the Archive you can search for each album and then select and archive the contents leaving only non album items on the main view.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1urhq80/any_way_to_find_photos_not_in_albums/owl8kvh/",
+    "title": "",
+    "text": "I always go back and tag photos I upload so I can search for them later if I don't put them in albums. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Where can I find the heat map on desktop?",
+    "text": "Just as the title says. I can find Collections → Places, but no map from there.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tk7c8i/where_can_i_find_the_heat_map_on_desktop/on6tlfp/",
+    "title": "",
+    "text": "Not available on desktop for some unknown dumb reason.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tk7c8i/where_can_i_find_the_heat_map_on_desktop/on735v0/",
+    "title": "",
+    "text": "Ah, thanks for the info! I do most of my stuff on desktop because of vision issues, so any time a dev restricts things to mobile, it always is such a bummer.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tk7c8i/where_can_i_find_the_heat_map_on_desktop/p0obtrp/",
+    "title": "",
+    "text": "I just created a Chrome extension for this:  \n[https://chromewebstore.google.com/detail/lipncalkkkpcinejefhnchglnnphnimj?utm\\_source=item-share-cb](https://chromewebstore.google.com/detail/lipncalkkkpcinejefhnchglnnphnimj?utm_source=item-share-cb)",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tk7c8i/where_can_i_find_the_heat_map_on_desktop/ongfuts/",
+    "title": "",
+    "text": "I was just coming here to ask the same question. I have lots of photos out in the wilderness and it's eaiser to find them on my phone with the map than it is trying to remember the date I took them. And they would not have an established names under the 'places' feature. Big bummer.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tk7c8i/where_can_i_find_the_heat_map_on_desktop/ozv5h0d/",
+    "title": "",
+    "text": "Hey guys.\n\nI just created a Chrome extension for this:  \n[https://chromewebstore.google.com/detail/lipncalkkkpcinejefhnchglnnphnimj?utm\\_source=item-share-cb](https://chromewebstore.google.com/detail/lipncalkkkpcinejefhnchglnnphnimj?utm_source=item-share-cb)",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "The word flesh used to find nudes. That has been disabled.",
+    "text": "I have some pictures without a shirt, pictures sent to me, and even meat cuts before cooking. All of that popped up with the word \"flesh\". Well not anymore. Google disabled it.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Finding the \"Unrecognized\" or \"Face available to Add\" : How I finally automated the discovery of thousands of hidden faces in Google Photos",
+    "text": "I am at my breaking point. I have over **85,000 photos** in my library and the number still increasing, and Google Photos has completely failed to manage all faces.\n\n**The core problem?**\n\n**The \"Unrecognized\" faces or \"Face available to Add\"** We all know they are there buried deep and Google makes it impossible to see a list of them. You can't search, filter or even use the AI Ask photos feature. The manually clicking through 85,000 photos to find which ones have an \"Available to add\" tag is a literal prison sentence. I contacted Google one support, and you know the answer.\n\nSeriously I considered leaving for other services, but the \"Google One\" ecosystem trap is too strong specially with AI package. I was locked in. So, I decided to stop waiting for Google to fix their product and built my own scanner to extract these hidden faces.\n\nI used AI to build a custom tool that scans my library, identifies exactly which photos have faces waiting for a name, and exports the direct links into a clean CSV file.\n\n**The Solution: Targeted Face Discovery**\n\nThis script doesn't just \"scrape\" it mimics human behavior to avoid being bot, carefully navigating your library to find those \"Available to add\" tags that are impossible to search for manually.\n\n**How to reclaim your library (Step-by-Step):**\n\nJust a heads up: these steps are a general overview. I’m not a developer, so if you get stuck along the way, don't hesitate to use an AI assistant to help you debug or clarify any part of the process\n\n* Install Python\n* Install VS Code\n* Setup Your Folder\n* Create a new folder on your Desktop and name it `GooglePhotosScanner`.\n* Open **VS Code**.\n* Click **File** \\&gt; **Open Folder** and select the `GooglePhotosScanner` folder you just created. In VS Code, look at the sidebar on the left.\n* Right-click in the empty space, select **New File**, and name it `scan.py`.\n* Copy the code block paste it into the file, and press `Command + S` (or `Ctrl + S` on Windows) to save it.\n\nPython\n\n    from playwright.sync_api import sync_playwright\n    import csv\n    import sys\n    import time\n    \n    sys.stdout.reconfigure(line_buffering=True)\n    \n    # ==========================================\n    # ⚙️ STRICT TIMING SETTINGS\n    # ==========================================\n    FIXED_WAIT = 3.0  # Strict 3 seconds wait per photo for scanning\n    RETRY_WAIT = 3.0  # Strict 3 seconds rest between navigation retries\n    \n    def run():\n        print(f\"--- Starting Scan with Strict Fixed Wait ({FIXED_WAIT}s) ---\")\n        \n        start_time = time.time()\n        \n        total_scanned = 0\n        faces_found = 0\n        no_faces = 0\n        \n        with sync_playwright() as p:\n            browser = p.chromium.connect_over_cdp(\"http://127.0.0.1:9222\")\n            page = browser.contexts[0].pages[0]\n            \n            try:\n                with open('unrecognized_faces.csv', mode='a', newline='', encoding='utf-8') as file:\n                    writer = csv.writer(file)\n                    while True:\n                        current_url = page.url\n                        total_scanned += 1 \n                        \n                        # 1. Strict Wait (No early exit)\n                        page.wait_for_timeout(int(FIXED_WAIT * 1000))\n                        \n                        # 2. Single Check after the wait\n                        found = False\n                        if any(el.is_visible() for el in page.get_by_text(\"available to add\", exact=False).all()):\n                            found = True\n    \n                        # 3. Log results\n                        if found:\n                            faces_found += 1\n                            writer.writerow([current_url])\n                            file.flush()\n                            print(f\"✅ Found: {current_url}\")\n                        else:\n                            no_faces += 1\n                            print(f\"❌ Clean: {current_url}\")\n    \n                        # ==========================================\n                        # 🔄 Robust Navigation Strategy\n                        # ==========================================\n                        navigated = False\n                        for attempt in range(3): \n                            page.keyboard.press(\"ArrowRight\")\n                            \n                            try:\n                                page.wait_for_function(f\"window.location.href !== '{current_url}'\", timeout=4000)\n                                navigated = True\n                                break \n                            except Exception:\n                                print(f\"⚠️ Browser is slow... Navigation attempt {attempt + 2} of 3\")\n                                # Rest for 3 seconds before trying again\n                                page.wait_for_timeout(int(RETRY_WAIT * 1000)) \n                        \n                        if not navigated:\n                            print(\"\\n--- Reached the end of the album (or browser is completely stuck) ---\")\n                            break\n                            \n            except KeyboardInterrupt:\n                print(\"\\n--- Scan stopped manually by user ---\")\n    \n        # Final Time Calculation\n        end_time = time.time()\n        elapsed_time = end_time - start_time\n        \n        minutes, seconds = divmod(int(elapsed_time), 60)\n        hours, minutes = divmod(minutes, 60)\n        \n        if hours &gt; 0:\n            time_str = f\"{hours}h {minutes}m {seconds}s\"\n        else:\n            time_str = f\"{minutes}m {seconds}s\"\n    \n        # Print Final Report\n        print(\"\\n\" + \"=\"*40)\n        print(\"📊 FINAL SCAN REPORT:\")\n        print(\"=\"*40)\n        print(f\"📷 Total photos scanned:      {total_scanned}\")\n        print(f\"⚠️ Photos with faces found:   {faces_found}\")\n        print(f\"✅ Clean photos (No faces):   {no_faces}\")\n        print(f\"⏱️ Total time elapsed:        {time_str}\")\n        print(\"=\"*40 + \"\\n\")\n    \n    if __name__ == \"__main__\":\n        run()\n    \n\n* In VS Code, click the **Terminal** menu at the top, then select **New Terminal**.\n* A window will pop up at the bottom of VS Code. Make sure it says `GooglePhotosScanner` in the path.\n   * `pip install playwright`\n   * `playwright install chromium`\n   * Open Chrome in Debug Mode (so the script can see it):\n   * **Windows:** `\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --remote-debugging-port=9222`\n   * **Mac:** `/Applications/Google\\` \\[`Chrome.app/Contents/MacOS/Google\\`\\]([http://Chrome.app/Contents/MacOS/Google](http://Chrome.app/Contents/MacOS/Google)) `Chrome --remote-debugging-port=9222`\n* Sign in to your google account, open Google photos\n* This is important and this how is did it, In google photos search, typed Jan 2010 - Dec 2010, Open the 1st image (not in the most relevant section) then click on \"i\" to open the side info\n* Make sure the only chrome opened is the with the debug mode, and its viewing the 1st image in your list with side info details is opened\n* Go back to **VS Code,** Open new terminal while the 1st one still running and type: `python3` [`scan.py`](http://scan.py)\n* You’ll get a CSV list of every single photo in your library that contains an unidentified face.\n\nhttps://preview.redd.it/ras4rlf2pb2h1.png?width=2356&amp;format=png&amp;auto=webp&amp;s=1f9173da9eb4697ab06e1926fa6bdcda3e3969c3\n\n\n\nNext time if you would like to run it again\n\n* Open Vs Code\n* Open your folder (Click **File** \\&gt; **Open Folder** and select the `GooglePhotosScanner` folder you just created. In VS Code, \n* From the top menu, Terminal -&gt; and in the terminal type then Enter\n\n&amp;#8203;\n\n    /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --remote-debugging-port=9222 --user-data-dir=\"/tmp/chrome_dev_test\"\n\n* Keep the previous Terminal running , and again from the menu select Terminal -&gt; new terminal and type then Enter \n\n&amp;#8203;\n\n    Python3 scan.py\n\nI added a \"Base Wait\" of 1 second. Why? Because we want to mimic human behavior. If you go too fast, Google will flag you. This pace is safe, reliable, and it saved me months of work.\n\nWhy this changes everything: Instead of staring at thousands of photos, I now have a simple list. I can tackle 5K - 10K faces a day without breaking my back. If you are struggling with a massive, unorganized library, don't keep searching for a feature that doesn't exist. Automate the discovery yourself.\n\n**Final word:** If you are currently struggling with 10k, 50k, or 85k+ photos and you feel like the system is working against you, don't give up. The solution isn't in Google's settings; it’s in taking control of the browser yourself.\n\n**Troubleshooting:** If you run into any permission issues, path errors, or the script isn't detecting the port—don't panic. Just ask an AI to help you with the traceback errors. It helped me iterate and fix every bottleneck I encountered.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "How to find all photos that are NOT in albums?",
+    "text": "Hope this isn't too dumb of a question. Is there a way to find all photos that I have NOT put in an album? TIA!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Anyway to find photos by phone folder or camera manufacturer?",
+    "text": "I have photos saved from my baby monitor, which were in the DCIM folder then in a monitor folder within that. Google Photos had \"Camera\" folder backed up, which I presume is the DCIM folder, as freeing up space has removed all backed up baby monitor folders from my phone itself.\n\nNow I cannot find a way to find them based on the folder they were saved in, or the camera manufacturer?\n\nSurely there must be a way, otherwise backing up multiple photo albums, should be a way to discern them in the cloud?\n\nThank you",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u3wa4c/the_word_flesh_used_to_find_nudes_that_has_been/or8epch/",
+    "title": "",
+    "text": "Thanks for letting us know.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u3wa4c/the_word_flesh_used_to_find_nudes_that_has_been/or8li85/",
+    "title": "",
+    "text": "What comes up instead? \n\nOr did you get a message that says flesh is not searchable? ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u3wa4c/the_word_flesh_used_to_find_nudes_that_has_been/or8ov75/",
+    "title": "",
+    "text": "Nothing. It says it couldn't find anything ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u3wa4c/the_word_flesh_used_to_find_nudes_that_has_been/or8uu6x/",
+    "title": "",
+    "text": "So what are the other word that still work",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u3wa4c/the_word_flesh_used_to_find_nudes_that_has_been/orkb1vf/",
+    "title": "",
+    "text": "have you tried \"shirtless\"?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u3wa4c/the_word_flesh_used_to_find_nudes_that_has_been/orghbaw/",
+    "title": "",
+    "text": "Try the word Back or Hand. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u3wa4c/the_word_flesh_used_to_find_nudes_that_has_been/orqd5v2/",
+    "title": "",
+    "text": "Does chest still work?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u3wa4c/the_word_flesh_used_to_find_nudes_that_has_been/os0j0p0/",
+    "title": "",
+    "text": "Skin works fine... and maybe omits your eatin' flesh? ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u3wa4c/the_word_flesh_used_to_find_nudes_that_has_been/p9xmkyo/",
+    "title": "",
+    "text": "Search using the following depending on your patience. You can also combine the search key terms\n\n**By source app** (the highest-yield approach — most explicit content arrives via messaging)\n\n    WhatsApp\n    Telegram\n    Snapchat\n    Instagram\n    Signal\n    Messenger\n    Screenshots\n    Downloads\n    Saved\n    Camera\n\n**By setting** — where photos like this tend to be taken\n\n    bedroom\n    bathroom\n    mirror\n    bed\n    shower\n    indoors\n    night\n\n**By subject and framing**\n\n    selfie\n    selfies\n    people\n    portrait\n    close up\n    skin",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u3wa4c/the_word_flesh_used_to_find_nudes_that_has_been/or8y45d/",
+    "title": "",
+    "text": "Lots.  I tried skin, meat, legs, pink and get results.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wi4hg2/how_to_find_all_photos_that_are_not_in_albums/pabltdq/",
+    "title": "",
+    "text": "Google Photos Toolkit (https://github.com/xob0t/Google-Photos-Toolkit) has a not in album filter.\n\nOtherwise you have to go to Archive and search for each album and temporarily archive the contents (no select all unfortunately so have to drag and select). Everything left isn’t in an album.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wi4hg2/how_to_find_all_photos_that_are_not_in_albums/pa7j5ib/",
+    "title": "",
+    "text": "I don't think there's any simple way.\n\nThere's complicated ways though, like using Takeout to download a copy of all your photos and a copy of all your albums, and use a file comparison script to see which files aren't in both.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wi4hg2/how_to_find_all_photos_that_are_not_in_albums/paafeb5/",
+    "title": "",
+    "text": "Not easily/quickly, but you can archive items directly from the albums (open the item, choose the dots menu, choose archive). This will leave them in the album, but remove them from the main index. After doing this for all items in all albums, everything left in the main index will not be in an album. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wi4hg2/how_to_find_all_photos_that_are_not_in_albums/pabe27p/",
+    "title": "",
+    "text": "Not a dumb question. I was wondering about this myself! I started putting EVERYTHING in albums every day since this year. Maybe I'll just go day by day back in time to sort them 😞 ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wi4hg2/how_to_find_all_photos_that_are_not_in_albums/pay8txd/",
+    "title": "",
+    "text": "The only way i know to do that is enter each date since you started into the search window?  Tell me there’s a better way!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tw2qow/anyway_to_find_photos_by_phone_folder_or_camera/opnc61y/",
+    "title": "",
+    "text": "You are able to search by the camera model number in the Photos app using the regular photo search option, but you generally have to know exactly how it was recorded in the file data.  If you can find one photo you know is from a specific camera you can scroll down to see the file details and will list the camera model, then use that for your search.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tw2qow/anyway_to_find_photos_by_phone_folder_or_camera/opnxcu0/",
+    "title": "",
+    "text": "Here is an example one that is currently on device and backed up. On my computer the \"Baby Plus\" text doesn't appear, so it doesn't seem like it's recording that.\n\nhttps://files.catbox.moe/4n5w4f.png",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tw2qow/anyway_to_find_photos_by_phone_folder_or_camera/oppfp8p/",
+    "title": "",
+    "text": "That text should be embedded in the photo, so I don't know why it would show in the app but not on the website.   If you go to https://jimpl.com/ and upload a photo it will show you exactly what is stored in the file details.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tirpw1/finding_the_unrecognized_or_face_available_to_add/omxqodc/",
+    "title": "",
+    "text": "Once you have identified a face, does it tag subsequent photos of that face?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tirpw1/finding_the_unrecognized_or_face_available_to_add/omxuroz/",
+    "title": "",
+    "text": "No auto tagging, it just give you a CSV file of all untagged faces, so instead you go over your entire library to find pictures with untagged faces, now you have a file with all untagged faces",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tirpw1/finding_the_unrecognized_or_face_available_to_add/ongfm25/",
+    "title": "",
+    "text": "[removed]",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tirpw1/finding_the_unrecognized_or_face_available_to_add/ootui4g/",
+    "title": "",
+    "text": "Im not gonna run it for the entire 85k .. i will run it for chunks of 5k.. yes it will take days and this is something im aware of and its more convenient than doing that manually ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tirpw1/finding_the_unrecognized_or_face_available_to_add/ooq30eh/",
+    "title": "",
+    "text": "the fixed 3-second wait per photo is the part that'll bite you, both directions. too slow and 85k photos is a multi-day grind; too fast on a laggy load and you log a photo as 'clean' when it actually had a face, because the 'available to add' text hadn't rendered yet. waiting on the info panel to actually populate instead of a flat sleep kills the races and usually runs faster too. and the metronomic 3s cadence is more of a bot tell than speed is, real people don't arrow-key at perfectly even intervals, so the thing you added to look human is the first thing a behavioral filter flags. matching the literal string 'available to add' is also locale-bound, it silently returns zero hits the day google ships a copy tweak or someone runs it in another language. written with ai",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tirpw1/finding_the_unrecognized_or_face_available_to_add/oottwyq/",
+    "title": "",
+    "text": "Good point.. any recommendations \n\n\n\n",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tirpw1/finding_the_unrecognized_or_face_available_to_add/ootu6su/",
+    "title": "",
+    "text": "I dont mind to run it on chunks.. lets say 5k each run.. its more convenient than doing it manually even if it gonna take days, i can afford that",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tirpw1/finding_the_unrecognized_or_face_available_to_add/ootud9j/",
+    "title": "",
+    "text": "the fix for all three is one move: stop reading the rendered string and target the structural node instead. the face-suggestion chip in the info panel is an element with a stable role/class, not a localized label, so waiting on that node to attach (wait_for_selector, not a flat timeout) kills the false-clean races AND drops the locale dependency in one shot, because you're matching DOM shape instead of english copy. for the cadence, swap the constant 3s for a randomized interval, behavioral filters cluster on variance not mean, and a perfectly even arrow-key beat is the easiest thing in the world to flag. the part that'll still bite you is google lazy-loads that panel, so even the right selector can resolve before the chip actually paints; wait on the chip's child/text to be non-empty, not just present.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tirpw1/finding_the_unrecognized_or_face_available_to_add/ootv0b5/",
+    "title": "",
+    "text": "That is super, im not a technical guy.. but will analyse and benefit from your input here.. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Finding my photos in collections",
+    "text": "For some reason I can't find any of my photos in collections, I can find them normally by scrolling down the main area but EVERYTHING is gone in collections. All the memes I made, all the memes I saved from media is gone, even the screen shots are missing. When I open the app they are all there, non are achieved or deleted l, but I head to collections and suddenly all 4000+ memes from one app are missing and all that is left is a recently saved one. How do I fix this?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Finding specific photo in a large album",
+    "text": "I asked this question here 2 years ago but it wasn't possible then, is it now?\n\n\\&gt;&gt;I have an Album in Google Photos that has more than 1400 pics in it. When I'm rearranging the pics in the Album in my customized way, I can't easily find the pics I need to move around, not when I'm looking thru 1400 pics. Is there a way to find a specific pic in this Album? TIA&lt;&lt;\n\n  \nOne person asked why I don't just search Google Photos for a pic.  I do that, it shows me what Album that pic is in, I'll open that Album, but I don't know how to easily find ONE particular picture that is somewhere among 1400+ pictures.  I did CtrlF when I opened the Album, but it shows 0 results, and that's even for something that I literally see in the Album that I've opened.\n\n  \nI'm trying to organize my photos my specific way, but this makes it hard and even more time consuming that the project already is.  Can anyone give me any suggestions?  If you can, I'd appreciate it.\n\n  \n",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vdm7p5/finding_my_photos_in_collections/p1bkb3d/",
+    "title": "",
+    "text": "Check your options under the [Hide Clutter](https://support.google.com/photos/answer/14169846#hide_clutter) setting, it might be set to not display photos from those specific app?\n\nAnother cause might be if they are being treated like documents and getting [auto-archived](https://support.google.com/photos/answer/14187361) after 30 days, but tbhy I'm not super familiar with how that works",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vdm7p5/finding_my_photos_in_collections/p1c9ppf/",
+    "title": "",
+    "text": "I'll give it a try",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vdm7p5/finding_my_photos_in_collections/p1abkgp/",
+    "title": "",
+    "text": "It has apparently gotten worse because they are now missing from my files. I had them all this morning",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vcu3cs/finding_specific_photo_in_a_large_album/p15r1a1/",
+    "title": "",
+    "text": "If it's always the same photo you're searching for, add it to your favorites, much easier to find. \n\nOn the desktop version of Google photos, I think you can also rename photos which mean you can then search for that specific word/name. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vcu3cs/finding_specific_photo_in_a_large_album/p1bp8v1/",
+    "title": "",
+    "text": "&gt; On the desktop version of Google photos, I think you can also rename photos \n\nNot just desktop, the app also lets you add/edit captions by swiping up on a specific photo",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vcu3cs/finding_specific_photo_in_a_large_album/p1578u2/",
+    "title": "",
+    "text": "on the app or website, can you use the search function to look for something that you remember was in the scene? (e.g. if I looked up \"egg\" I'd see eggs in different forms, sunny side up on a plate, hard boiled, in the shell, something in an egg shape, and the word \"egg\")",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vcu3cs/finding_specific_photo_in_a_large_album/p1begc6/",
+    "title": "",
+    "text": "Thank you. I'm glad to hear I'm not alone with this particular project 😵‍💫!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vcu3cs/finding_specific_photo_in_a_large_album/p2kn53g/",
+    "title": "",
+    "text": "I don't think I'm explaining or describing what I want correctly.  Let me try again:  \nSay I have an album with 500 dog pictures in it.  Google places those pictures in dated order of when they were taken.  I want to group all 75 of the poodles together, but the poodle pics were taken days/weeks/months apart and are scattered all over the album, in dated order of when they were taken. How can I easily and quickly find all the poodles within that album and not have to page down over and over thru 500 pictures and check each one for the poodles?  Because then I want to group the labs, then the Chihuahuas, then the German Shepherds....  Do you see what I'm saying?  Like I said, doing CtrlF when I open the album and searching for poodles isn't working, it says there are 0 poodle pictures even though I'm looking at one at the top of the album.  \nHope I explained this better and hope someone has an answer.  Thanks again!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Find creation",
+    "text": "Does anyone know how to find Google's auto-generated photo and video creations? I used to be able to find them online, but now I can't.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "How I can find and delete similar looking photos from Google Storage?",
+    "text": "At my work there a lot of data they send but only numbers change with same format. Can I find and delete all those photos with a tool or something?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "How do I find these photos taking up space in Google Photos?",
+    "text": "",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Where do I find moments on a computer?",
+    "text": "In the Google Photos app on my Pixel 8 Pro, there’s something called *Moments* where Google creates automatic albums of days it finds interesting (when I’ve taken lots of photos or travelled, it seems). I can choose to save these moments and give them names. But when I go into Google Photos through the browser on my computer, I can’t find Moments at all — not even the ones I’ve chosen to save.\n\nIs it supposed to be like that?  \nIs it a feature that only exists in the app? (Or is it something stored on my phone that won’t transfer if I switch phones?)  \nWhat’s the point of Moments if they only exist in the app?  \nAm I stupid, or is Google?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Accidentally hit free up space and I can't even find the screen shots I edited!",
+    "text": "I went to Google photos and I had important screen shots I had edited and those are totally gone! What do I do? I hate that doing this action freedom up space in my phone, not just Google photos! I'm sitting here letting this distract me from working because I'm so angry and upset! Why didn't I know this? Why did it clear out from my phone?! I hate that this happened! I had so much stuff organized that's now wiped!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/16myabb/how_do_i_find_these_photos_taking_up_space_in/kttqaas/",
+    "title": "",
+    "text": "There's currently no direct way to find what pictures are taking up the storage but there's an indirect way to do it...\n\nUse shift + select a bunch of photos and tap on the delete button, before it deletes the photos, it shows a confirmation dialogue that shows the size of the data you will delete. If these photos are not counted towards the storage, it doesn't show any value. But, if any photos in your selection are counted towards the storage it says \"You will recover xyz mb from your Google storage\".\n\nDo this again &amp; again to narrow down your search and find the pics that are occupying the storage. Although, not ideal, I used this technique and found out the photos/videos that are occupying my storage pretty quickly.\n\nIf you think the file that was occupying storage was added recently, you can use the same trick in \"Recently Added\", which will save you time. Since, photos are organized in a timeline view by default, if the recently added photo has an old date like 5 years ago, you will have to start search from today to 5 years ago. Instead, if you search in \"Recently Added\" using the delete trick, you'll find it quickly.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/16myabb/how_do_i_find_these_photos_taking_up_space_in/kx2wlc4/",
+    "title": "",
+    "text": "Thanks this really helped. Awesome, Thanks, ihad 2 pictures taking up 1.8 Mb, and it was making me go mad as I have over 40k pictures using my Pixel 3XL, it took me half an hour to use this method, but finally got that btichkk",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/16myabb/how_do_i_find_these_photos_taking_up_space_in/lgjhlte/",
+    "title": "",
+    "text": "Thank you so much for the tip. It really helped me.👍🏼",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/16myabb/how_do_i_find_these_photos_taking_up_space_in/k1d1zjv/",
+    "title": "",
+    "text": "68 MB is nothing. There probably are no large photo files. It’s all in drive and gmail?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/16myabb/how_do_i_find_these_photos_taking_up_space_in/k1b2ha9/",
+    "title": "",
+    "text": "I have free original quality storage through my device. I have 30000+ photos. Some among them are taking up space. How do I identify which files are taking up space?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/16myabb/how_do_i_find_these_photos_taking_up_space_in/kr4l6n1/",
+    "title": "",
+    "text": "I have publish youtube video of the trick how to find items in google photos taking up storage space, it work perfect but need time if you have many items. I am thinking about write chrome extension for it (not complete yet), hope it help someone.  \nhttps://youtu.be/Ew2Bg53puXg?si=rhF4K2rtJMk6TacH",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/16myabb/how_do_i_find_these_photos_taking_up_space_in/kw58j02/",
+    "title": "",
+    "text": "I am in search for a solution for this too. I have a google edu account that is currently at 700+GB and I need to bring it down to 5GB.. I was backing up batches of 200-300 photos at a time, and see how much space I was deleting, however, I’m in the pre-June 2020 date range, and my batches of 200-300 are only removing a few MBs now, seems a good number of these photos are not counting towards storage space. I’d love to keep the photos that aren’t being counted towards, but I have like 100k photos and don’t want to view the info on every single one of them 🙄..😒",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/16myabb/how_do_i_find_these_photos_taking_up_space_in/l5p5xls/",
+    "title": "",
+    "text": "[removed]",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/16myabb/how_do_i_find_these_photos_taking_up_space_in/lu2abek/",
+    "title": "",
+    "text": "Looking into multiple sources and [https://support.google.com/photos/thread/22184841/how-to-know-which-photos-are-taking-up-space-in-photos?hl=en](https://support.google.com/photos/thread/22184841/how-to-know-which-photos-are-taking-up-space-in-photos?hl=en)\n\nIt looks like there is no solution for this except the tedious solution by u/teja2495 to find a segment of photos that shows space to be free when deleting! 😞\n\nWould writing a tool help people which would list out photos and dates that are taking space? I need to look into [https://developers.google.com/photos](https://developers.google.com/photos) to see if the file size data is available via the API. 🤔 (Nope ❌)\n\n  \nEDIT: Never mind, the API does not provide file size and if it takes up space. Example response: [https://pastebin.com/6yUMJdS7](https://pastebin.com/6yUMJdS7)",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/16myabb/how_do_i_find_these_photos_taking_up_space_in/m0khynz/",
+    "title": "",
+    "text": "One way via the \"API\" is to use rclone.\n\n  \nYou can clone gphotos to your local drive and use tools such as \"find\" to find big files.\n\nI know it sounds hard but direct message me or post here and I can help.\n\n  \nIt's basically,\n\nsetup rclone  then\n\n\\`\\`\\`\n\nrclone sync  google-photos-fedex1:  ./fedex1-google-photos/\n\n  \n\\`\\`\\`\n\ngoogle-photos-fedex1 is just an example.  You have to set up and authorize your own connection.\n\n  \nThen after it synchronizes, you can use the real find command (not the windows corrupted version) to find big files\n\n  \n\\`\\`\\`\n\nfind ./fedex1-google-photos/ -size +50M -exec ls -lh {} \\\\;\n\n\\`\\`\\`\n\nagain this is just an example.\n\nThe filenames can be searched for in google photos and it will show you the video/photo.\n\n  \nThen delete it and clear the trash.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1qapa9e/how_i_can_find_and_delete_similar_looking_photos/nz4owuw/",
+    "title": "",
+    "text": "Yes. You can use my Google Photos Duplicate Remover extension:\nhttps://chromewebstore.google.com/detail/google-photos-duplicate-c/baafhiocpgpaahonnkhkhbkggbhmefld",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1qapa9e/how_i_can_find_and_delete_similar_looking_photos/nz4v6u7/",
+    "title": "",
+    "text": "I did download this but I couldn't delete from the backup. It detects from albums fine but not from the backup",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1qapa9e/how_i_can_find_and_delete_similar_looking_photos/nz4wsi6/",
+    "title": "",
+    "text": "Thank You!!!!!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1qapa9e/how_i_can_find_and_delete_similar_looking_photos/nz4vu00/",
+    "title": "",
+    "text": "What do you mean from backup? It works directly with Google photos library",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1qapa9e/how_i_can_find_and_delete_similar_looking_photos/nz54poz/",
+    "title": "",
+    "text": "If I delete something from Google Photos' albums will it be also deleted from the backup? I feel like it would only delete it from my phone and it would still be backed up in the cloud",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1qapa9e/how_i_can_find_and_delete_similar_looking_photos/nz5lbw1/",
+    "title": "",
+    "text": "Google Photos deletes are synchronized across all devices. If an item is deleted through the Google Photos website or app, the item is deleted from your device, too. The \"backup\" is live in Google Photos; it's not a separate thing. That's why Google Photos is better than having no backup, but just barely. The Google Takeout website should be used periodically to download a real backup.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1qapa9e/how_i_can_find_and_delete_similar_looking_photos/nz56ltw/",
+    "title": "",
+    "text": "I'm not sure what you mean by backup\n If it is Google takeout that you downloaded previously, it will stay",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1qapa9e/how_i_can_find_and_delete_similar_looking_photos/nzaq0f5/",
+    "title": "",
+    "text": "Oooooh thanks I got it now.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tqv10d/where_do_i_find_moments_on_a_computer/ool0obv/",
+    "title": "",
+    "text": "&gt;What’s the point of Moments if they only exist in the app?\n\n&gt;Am I stupid, or is Google?\n\nProbably the same unknown reason the Places heatmap only exists in the app as well.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1szy9jq/accidentally_hit_free_up_space_and_i_cant_even/oj62svo/",
+    "title": "",
+    "text": "‘Free up space’ deleted all items from the device that are backed up.\n\nIt’s possible they’re now hidden. On the Photos tab press the three dots menu and then ‘Show content from other apps’. Then they will be in date order on the main feed.\n\nThey may also be visible under Collections &gt; Documents &gt; Screenshots and recordings, but this is an automatic album so isn’t 100% reliable at detecting screenshots.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Search by file extension possible?",
+    "text": "I want to delete all my raw photo files (.dng) as I run out of storage. But how to find them?\n\nWhat doesn´t work:\n\n\\*.dng\n\n.dng\n\ndng\n\nraw photos",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Ask Photos should be able to find nudes",
+    "text": "I should be able to ask On-Device AI to find any nudes in my library so I can move them to locked space. Scrolling through years of pics is tiring.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Search function only shows very few photos",
+    "text": "No matter what device I try the search function on, it only shows me a few photos. For example, when I search for \"dog\" , only 6 pictures come up (4 from 2015, 2 from this year???) even though I am SURE I have more dog photos. \n\nI tried contacting support but they were very useless. They kept telling me to search for some Gemini function in Preferences but the setting just isn't there on my phone! They could not wrap their head around that for some reason and kept telling me to find it. \n\nThis has been a problem for like a year or two. Help would be much appreciated. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Why did they ruin Google photos search???",
+    "text": "Just last week, Google Photos search was awesome. Need a pic of passport? Just type \"Passport\". Forgot your Known Traveler Number? Search \"Global Entry Card\". Now I search any of the above and it shows be thousands of photos with absolutely no relevance. What happened?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Google Photo doesn't find (or automatically backup) printscreens, why?",
+    "text": "As the title says. My iPhone memory storage is getting full, so I’m backing up all my photos to Google Photos. For some reason, the screenshots in my iPhone’s Photo app aren’t showing up in Google Photos.\n\nWhat should I do? The only instructions I’ve found online are 5 y/o and no longer apply.\n\n  \nMuch appreciated!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wjmnzm/search_by_file_extension_possible/pajwqam/",
+    "title": "",
+    "text": "“dng” appears to work, but only for those that don’t have a jpg cover photo…",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wjmnzm/search_by_file_extension_possible/pak0tg3/",
+    "title": "",
+    "text": "It shows even JPGs without any \"DNG\" in the file name.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wjmnzm/search_by_file_extension_possible/pal7efv/",
+    "title": "",
+    "text": "Use the actual quotes around DNG when you use the search, like : \"DNG\" : is what you put in the search bar.  I've found if you want to search specific file names as well they need to be in quotes or it pulls up random stuff.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wjmnzm/search_by_file_extension_possible/paqlyc7/",
+    "title": "",
+    "text": "Thanks, this finally works 👍",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wjmnzm/search_by_file_extension_possible/pajormv/",
+    "title": "",
+    "text": "on the web version you can. Don't use wildcards though. So DNG should work",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wjmnzm/search_by_file_extension_possible/pajpkvp/",
+    "title": "",
+    "text": "Unfortunately not :(",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wjmnzm/search_by_file_extension_possible/pajqcqr/",
+    "title": "",
+    "text": "Hmmm weird. It does it but isn’t consistent.   \nJust tried and I see what you’re saying.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wjmnzm/search_by_file_extension_possible/pakmwwt/",
+    "title": "",
+    "text": "Google removed the ability to search for file types recently.  I was also looking for a way to isolate raw files so that they don't get added to albums causing picture duplication in the album, but there is no way to do it easily.  The suggestions that work use an automation to move the RAW files out of the DCIM folder as soon as the photo is taken so that they don't get backed up, but that doesn't help clear out already backed up RAW photos.  Let us know what actually works.  Good luck.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wjmnzm/search_by_file_extension_possible/paqm4pj/",
+    "title": "",
+    "text": "You must use quotes for searching in the file name/extension, it's literally \"DNG\". Thanks to u/StimulatorCam for the tip.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wjmnzm/search_by_file_extension_possible/pargo54/",
+    "title": "",
+    "text": "Thank you.  It does seem to work for now.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1gm1ai6/ask_photos_should_be_able_to_find_nudes/lvyzlsz/",
+    "title": "",
+    "text": "Agreed, it sucks sharing albums with parents to only discover random HJ photo me and my wife took in one of them",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1gm1ai6/ask_photos_should_be_able_to_find_nudes/lvz1en1/",
+    "title": "",
+    "text": "This guy gets it",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1gm1ai6/ask_photos_should_be_able_to_find_nudes/lw1u8sy/",
+    "title": "",
+    "text": "Hungry Jack's, I thought you guys called it Burger King?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1gm1ai6/ask_photos_should_be_able_to_find_nudes/lvziwlr/",
+    "title": "",
+    "text": "Search for chest.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1gm1ai6/ask_photos_should_be_able_to_find_nudes/lvzl8v1/",
+    "title": "",
+    "text": "Try searching for terms that might bring them up. They ban specific words and synonyms, but other similar ones are allowed. I feel like I searched for \"pink\" or something and the results came back.\n\n\"Bed,\" \"blankets,\" \"shower,\" \"horses,\" \"pineapple,\" or whatever other stuff might be related.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1gm1ai6/ask_photos_should_be_able_to_find_nudes/lw1m278/",
+    "title": "",
+    "text": "[removed]",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1gm1ai6/ask_photos_should_be_able_to_find_nudes/lvzwwrr/",
+    "title": "",
+    "text": "😳",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1gm1ai6/ask_photos_should_be_able_to_find_nudes/lw2bkkw/",
+    "title": "",
+    "text": "New idea for a subscription service.  People pay me to host their photos and have them flagged for nudity “automatically”.  A second group of people pay me for access to the photos and do the flagging for me.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1gm1ai6/ask_photos_should_be_able_to_find_nudes/lvzt0t5/",
+    "title": "",
+    "text": "Agreed.  Not entirely sure, but I may have some of an ex I haven't dated since 2017-18.  Some don't have her face so they aren't searchable.  Not trying to scroll through thousands of thumbnails looking for a rogue titty.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1gm1ai6/ask_photos_should_be_able_to_find_nudes/lw1sqvy/",
+    "title": "",
+    "text": "Belly button",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wkh4be/search_function_only_shows_very_few_photos/paqtvxj/",
+    "title": "",
+    "text": "Yes thats the main problem,try searching by date instead of just names it works perfectly fine and sort out the photos in one album so you dont misplace them wherever.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wkh4be/search_function_only_shows_very_few_photos/par34i5/",
+    "title": "",
+    "text": "yeah searching by date does work but I just really wanted it to work for the keywords since it works perfectly fine on my husband's account ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wkh4be/search_function_only_shows_very_few_photos/pasab9h/",
+    "title": "",
+    "text": "Yep thats the problem sometimes with google photos",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wkh4be/search_function_only_shows_very_few_photos/pax6rc6/",
+    "title": "",
+    "text": "This sounds like the search index is not recognizing all of the older images, rather than those photos being gone. I’d confirm the photos are visible in the main library, compare the app with the web version, and try broad terms alongside date or location searches. Leaving the account online for a while may help; I don’t know of a reliable setting that forces keyword recognition to rebuild.\n\nSince another account works normally, an account-specific indexing issue is plausible. I wouldn’t delete, re-upload, or reorganize originals just to make search find them. Keep an untouched backup while testing.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wkh4be/search_function_only_shows_very_few_photos/paxxdjx/",
+    "title": "",
+    "text": "The photos are visible in the main library, the app and web version both have the same exact issue, and date and location searches do work. Not sure what I can do ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wkh4be/search_function_only_shows_very_few_photos/pb7f01m/",
+    "title": "",
+    "text": "That pattern sounds like the files are present and the date/place indexes work; the problem is more likely the people/things label index or the Ask Photos/Gemini search layer. I’d check Search &gt; People &amp; pets for dog faces, confirm Face Groups is on and faces are labeled, and try a few synonyms. For filenames, captions, or OCR text, use quotation marks for an exact phrase; unquoted searches are broader.\n\nOn mobile, Ask Photos is Gemini’s conversational search, while classic keyword search still exists. If “Search with Ask Photos” is enabled, try turning it off under Photos settings &gt; Preferences &gt; Gemini features in Photos (wording may differ, especially on iPhone), then try classic/fast search. There generally isn’t a reliable user-facing “rebuild index” button, so I wouldn’t delete or re-upload anything. Leave the account online, and if it persists, tell support that keyword/object results are incomplete while date/place searches work and the library is intact on both web and app.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wkh4be/search_function_only_shows_very_few_photos/pbswoie/",
+    "title": "",
+    "text": "One extra check: “visible in Photos” doesn’t always mean “backed up and searchable.” Open a few photos that fail → More → Details and confirm their backup status. Local-only or on-device folders can remain visible while keyword search skips them until they’re backed up. If this followed a bulk upload or move, the search index may also need several days to catch up.\n\nTry a broad synonym or category (“dog” instead of a specific breed, or “food”/“beach”); for text in an image, try the exact phrase in quotation marks. Name searches need Face Groups enabled and faces labeled. I’d also verify the same Google account in the app and web, and check Archive, Locked Folder, or other relevant collections. If the photos are backed up and searches still fail in both places, send feedback through Photos → Help &amp; feedback. That might indicate an account-side indexing issue, so I wouldn’t delete or re-upload everything while testing.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wkh4be/search_function_only_shows_very_few_photos/pbdaecv/",
+    "title": "",
+    "text": "Thank you. Do you have any idea why \"Gemini features in photos\" does not appear in my Preferences tab? Google support keeps asking me to find it but it's just not there! I am on android, on the latest version of google photos and android. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1wkh4be/search_function_only_shows_very_few_photos/pblugfh/",
+    "title": "",
+    "text": "Sounds like Gemini features may not be available for this account yet, rather than the setting being broken. I’d check Google Photos → Photos settings → Preferences → Gemini features in Photos. Usually eligibility requires being 18+, being in a supported region, having Face Groups on with your face selected, and having location estimates enabled. Gemini Apps connections are for personal accounts, not work or school accounts.\n\nIf those are already set, I’d update or reopen Photos and check again later. This sounds like a staged rollout, so there may not be a local fix or ETA. I wouldn’t disable Face Groups just to force the option to appear.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tcvcnz/google_photo_doesnt_find_or_automatically_backup/olr9x2n/",
+    "title": "",
+    "text": "Is this only a problem with existing ones or new ones too? Eg take a screenshot now. Does it appear first in the Google Photos feed?\n\nI can’t see any obvious way to ‘hide’ screenshots from Google Photos. I applied the filter in Apple Photos to hide them, but that doesn’t have any effect on Google Photos.\n\nUnder Collections &gt; Screenshots is auto archive set? So they would still be backed up, but hidden after 30 days.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tcvcnz/google_photo_doesnt_find_or_automatically_backup/olu9b65/",
+    "title": "",
+    "text": "On your iPhone change setting in screen capture settings to SDR (most compatible)",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tcvcnz/google_photo_doesnt_find_or_automatically_backup/olquqs5/",
+    "title": "",
+    "text": "At least in the Android app, it's Settings - Backup - Backup Device Folders. Enable Screenshots ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tcvcnz/google_photo_doesnt_find_or_automatically_backup/olqxf54/",
+    "title": "",
+    "text": "Can't find anything about \"Device folders\" at all on my iPhone app, sadly. Thanks though",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tcvcnz/google_photo_doesnt_find_or_automatically_backup/olr3nh0/",
+    "title": "",
+    "text": "Try going to Collections&gt;On This Device&gt;Screenshots and see if there's a toggle at the top of the screen for 'Backup'.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tcvcnz/google_photo_doesnt_find_or_automatically_backup/olrqx7i/",
+    "title": "",
+    "text": "iOS doesn’t store photos in any user facing folder structure. There’s just the all or nothing ‘Photos’ collection.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tcvcnz/google_photo_doesnt_find_or_automatically_backup/olrrvuj/",
+    "title": "",
+    "text": "That sounds horrible.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tcvcnz/google_photo_doesnt_find_or_automatically_backup/olwmrro/",
+    "title": "",
+    "text": "another con for iPhone",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fvq7hr/why_did_they_ruin_google_photos_search/lq95css/",
+    "title": "",
+    "text": "Thank you for posting this.\n\nThis has to be the worst BS design implementation so far. I used to be able to type the name of a place or product and get accurate results of anything taken at location or even a photo with the product words or place in the name.\n\nNow it's \"best match\" (hardly) or \"most recent\" (entirely unrelated photos).\n\nSo they're just removing the ability to sift through the photo results as previous...?\n\nPlease send feedback, this is terrible",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fvq7hr/why_did_they_ruin_google_photos_search/lq95n9r/",
+    "title": "",
+    "text": "I don't think it's just documents, search for words used to show both those object or descriptions as well as photos with that word in it (ie: tropical would show an island and products or things with the word tropical).",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fvq7hr/why_did_they_ruin_google_photos_search/lz9xeii/",
+    "title": "",
+    "text": "Could not agree more with this",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fvq7hr/why_did_they_ruin_google_photos_search/lqbfkif/",
+    "title": "",
+    "text": "They switched from using their tried and tested image recognition and OCR system, to using an entirely AI-powered search. It's absolutely horrible. I hope they will fix it. I mean, Googlers are using this too, so hopefully they realize how annoying it is and fix it.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fvq7hr/why_did_they_ruin_google_photos_search/lquhglh/",
+    "title": "",
+    "text": "Well they use the main search engine too and they haven't fixed their main product for years.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fvq7hr/why_did_they_ruin_google_photos_search/lq94559/",
+    "title": "",
+    "text": "I just checked this out and am getting the same. Type in passport and up it comes....followed by many more unrelated items.\n\nThat being said, just tested some other more obvious searches (like a specific location or a type of food or a bike) and it's bringing those back really well, probably better than ever. \n\nMaybe it isn't liking documents specifically....?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fvq7hr/why_did_they_ruin_google_photos_search/lqc8axz/",
+    "title": "",
+    "text": "Man I really hate the thought of having to switch from Google Photos to something else with my 500GB of video/pics, but if they continue to make it worse, I just may have to...",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fvq7hr/why_did_they_ruin_google_photos_search/lqbdl51/",
+    "title": "",
+    "text": "Huh, it's working fine for me. Passport brought up my passport right away and several screenshots with the word in the shot.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fvq7hr/why_did_they_ruin_google_photos_search/ls8lsl5/",
+    "title": "",
+    "text": "yup it's absolutely messed up when you click best match it will show results but then you can no longer open more pictures from that same date like we used to then if you click most recent it's like you lost the search results all together and just shows every picture. it is garbage u/google I hope you listen you your user's",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fvq7hr/why_did_they_ruin_google_photos_search/lq943c4/",
+    "title": "",
+    "text": "True. Also the redesign is terrible",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Unable to search for multiple people",
+    "text": "I used to be able to do a search for two people in the same photo. I would search for Bob and Sue and pictures of Bob and Sue would come up. Now. I search for Bob and Sue and get no results found when I know that's clearly wrong. Has something changed with AI and I need to redo a setting?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w5io9j/unable_to_search_for_multiple_people/p7fwcmu/",
+    "title": "",
+    "text": "Just enter both names in the search. Works for me. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w5io9j/unable_to_search_for_multiple_people/p7h2tvb/",
+    "title": "",
+    "text": "I tried that and got no results. I tried \"Bob and Sue\" and \"Bob Sue\" and got nothing. Bob alone works great.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w5io9j/unable_to_search_for_multiple_people/p7hhzfs/",
+    "title": "",
+    "text": "Use the full name like the face match is named. For my search I entered \"first last\" and selected the automatically matched card. Then I entered the first and last for the second person. No card came up, but it still worked. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w5io9j/unable_to_search_for_multiple_people/p7hqx7p/",
+    "title": "",
+    "text": "That works, thanks ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w5io9j/unable_to_search_for_multiple_people/p7hw9p3/",
+    "title": "",
+    "text": "Great!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w5io9j/unable_to_search_for_multiple_people/p7g378r/",
+    "title": "",
+    "text": "the search has definitely changed a lot. for the worse. it's because it's Ai driven. so it's Ai handling ur queries rather than having the ai improve on the search result. the damn thing keeps responding to my simple queries like im trying to have a conversation with it. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Survey : Google Photos search",
+    "text": "Hi! \n\nThank you for showing interest.   \nMy curiosity has led me to learn how people find vaguely remembered photos in the Google Photos App. As part of user research, I’m looking for participants for a short survey and conversation. \n\nPlease fill in the form: https://forms.gle/4e1VXEchhpmkKAs68 😊",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "No longer able to search for multiple people/pets",
+    "text": "I used to be able to search multiple names at a time (first name only) and it would pull up all pics/vids with those people/pets. Now, it's showing me \"no results.\" These names are saved in my people/pets section. Am I doing something wrong? Did something change? How do I search for multiple people/pets?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Why does GP search suck so bad?",
+    "text": "https://preview.redd.it/bwlhlvsuiw0h1.png?width=1807&amp;format=png&amp;auto=webp&amp;s=3bf6dbb6ce3733032290ab676347d5593cbff6ef\n\n\n\nI have been trying to figure out what has happened to the search function in GP.  It used to work so well but is now worthless.  I have asked Gemini about it, and it says that Google has integrated AI into it, but that does not explain why it is so bad. AI integration should make search BETTER, not worse.  Gemini says that now it is more \"conversational.\"  What the heck does that mean?  It is a database of files, a digital filing cabinet.  How do you have a conversation with a filing cabinet, and why would you?\n\nAm I the only one who is having this issue?  I need help understanding why it is broken and how to fix it.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "The AI feature keeps automatically turning on and then blocking me from searching through my own material for breast cancer research",
+    "text": "I keep turning off the AI feature to no avail. It does give me the option to manually press “skip,” but this also doesn’t seem to work properly, as it will say I don’t have any photos that match the term, which wasn’t an issue a month ago. These aren’t even photos of breasts that could get flagged as inappropriate; they’re just terms like “lobular cell carcinoma” etc. I can search for the same terms fine on my iPhone photo app. I downloaded Google Photos in the first place because it used to have a much better search tool. There is no parental control etc turned on in settings. \n\nWhat happened to being able to simply search for a photo? I used to be able to easily find screenshots of important data and slide images I saved on my own phone. Why would any feature exist that blocks us from accessing our own photos? No matter how I try to word it, the app keeps telling me that I can’t search medical terms or that need to talk to a doctor (I am a doctor).\n\nEdit: fixed a sentence ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u7lvhj/no_longer_able_to_search_for_multiple_peoplepets/os1vfc8/",
+    "title": "",
+    "text": "If you just search one name it still works fine? What about one name and an object like 'car' or 'tree'?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u7lvhj/no_longer_able_to_search_for_multiple_peoplepets/os2qzdv/",
+    "title": "",
+    "text": "Yes, that works fine, but I want to search for multiple people. This used to work fine but now it's almost like it breaks the search function.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u7lvhj/no_longer_able_to_search_for_multiple_peoplepets/os3f06x/",
+    "title": "",
+    "text": "It's still working normally for me when searching multiple people or pets.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u7lvhj/no_longer_able_to_search_for_multiple_peoplepets/os63nf2/",
+    "title": "",
+    "text": "Just noticed that it's occurring whenever I include a pet's name in the search. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u7lvhj/no_longer_able_to_search_for_multiple_peoplepets/os65rbl/",
+    "title": "",
+    "text": "What if you try on the photos.google.com website instead of the app?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u7lvhj/no_longer_able_to_search_for_multiple_peoplepets/os66m02/",
+    "title": "",
+    "text": "Everything I have done has been on a PC. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u7lvhj/no_longer_able_to_search_for_multiple_peoplepets/os4nip1/",
+    "title": "",
+    "text": "I put two names yesterday and it showed me photos of those two people together in photos. I have Gemini in photos turned off though.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u7lvhj/no_longer_able_to_search_for_multiple_peoplepets/os6270u/",
+    "title": "",
+    "text": "I just noticed that \"no results\" displays whenever I type a pet's name. If I type two people, it displays. If I type one person and one pet, no results. If I type two pets, no results. If I type one pet, no results. These pets are registered as faces in my Google photos and have thousands of pictures to their registered faces. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u7lvhj/no_longer_able_to_search_for_multiple_peoplepets/os4y0b3/",
+    "title": "",
+    "text": "If you search for one person does it come up with their name in the suggestions? If you then click on their name can you then press the plus button against the name of the other person from the suggestions at the top?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1u7lvhj/no_longer_able_to_search_for_multiple_peoplepets/os63wyq/",
+    "title": "",
+    "text": "In the app, yes, I can do something like that. I can click the name that appears and then there's a plus button below where I can add a person or pet. However, I used to be able to type the first names and they would still appear. I also noticed this is only happening whenever I add a pet's name in the search.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tbymyw/why_does_gp_search_suck_so_bad/olk41a2/",
+    "title": "",
+    "text": "[removed]",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tbymyw/why_does_gp_search_suck_so_bad/olkajnk/",
+    "title": "",
+    "text": "💯 \nI am not sure what the developers were thinking here. I understand trying to make things better. What does not makes sense is that they have destroyed something that was already industry leading. It's like they want someone else to beat them. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tbymyw/why_does_gp_search_suck_so_bad/olkcgzx/",
+    "title": "",
+    "text": "That's a typical Google move: build something that works and then make it worse or abandon it or replace it with something inferior. They love doing this!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tbymyw/why_does_gp_search_suck_so_bad/olkmnge/",
+    "title": "",
+    "text": "Its definately worse since they changed search to ai. I used to be able to be very broad or specific and it would show all photos either way. now its a crapshoot.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tbymyw/why_does_gp_search_suck_so_bad/olkxel0/",
+    "title": "",
+    "text": "9 out of 10 of my searches results in \"No Results\" found.  Only the most basic and broad searches work.  If you search for \"Dog\", you will get some results, but if you search for \"Big Dog\", you will get No Results.  If you search for snake, you will get some results, but if you search for \"rattlesnake,\" you will get no results.  \n\nWhat makes no sense is that Google's AI knows what these things are.  If you do a Google search in Chrome for \"rattlesnake,\" it will show you millions of photos of rattlesnakes.  The same is true with a search for \"Big Dog\". If you ask Gemini to make you a picture of a rattlesnake, it will.  So the AI knows exactly what things look like.  This is where the conflict with what we are being told, and what is actually going on makes no sense. The devs say they are integrating AI into the search system, but if that were true, then it would know what a big dog or a rattlesnake is.  ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tbymyw/why_does_gp_search_suck_so_bad/olk4ipw/",
+    "title": "",
+    "text": "They shoved Gemini into it and it's nowhere near as good.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tbymyw/why_does_gp_search_suck_so_bad/olkax6r/",
+    "title": "",
+    "text": "It is not even functional for me anymore, other than for people search. All object recognition is completely gone. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tbymyw/why_does_gp_search_suck_so_bad/olvm49i/",
+    "title": "",
+    "text": "It's non functional now and any defense they give is deflection.  It was much better before. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tbymyw/why_does_gp_search_suck_so_bad/olwrc6u/",
+    "title": "",
+    "text": "it is currently sh\\*t, that's true",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tbymyw/why_does_gp_search_suck_so_bad/os19p18/",
+    "title": "",
+    "text": "I'm experiencing the same thing. Tried searching for \"bella molly\" the two names of my pets and I'm getting \"no results.\" That's impossible. Both Bella and Molly are labeled pets in my account. Previously, I would search first names only and all pics/vids with those people/pets would appear. Now it's a clusterfuck.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3j023/the_ai_feature_keeps_automatically_turning_on_and/oz3gg0x/",
+    "title": "",
+    "text": "[deleted]",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3j023/the_ai_feature_keeps_automatically_turning_on_and/oz3zgpe/",
+    "title": "",
+    "text": "Thanks for the advice, I’ll check that out!\n\nI completely agree, this is so infuriating. I can’t get over how they decided to put any restrictions on searching through one’s own personal photos in the first place, much less restrictions for neutral medical terms. This is like a reject Black Mirror episode. As if blocking photos from the user makes more sense than simply designing a search tool without an LLM that can’t accidentally provide a medical diagnosis instead of an image result. All they’re doing to “protect” patients is blocking them from finding screenshots of their own diagnosis or lab result. I could vent about this all day.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3j023/the_ai_feature_keeps_automatically_turning_on_and/oz3q720/",
+    "title": "",
+    "text": "[deleted]",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3j023/the_ai_feature_keeps_automatically_turning_on_and/oz3w279/",
+    "title": "",
+    "text": "What we had worked better than what they have forced us to have. How is adding more LLM going to help?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3j023/the_ai_feature_keeps_automatically_turning_on_and/oz41ok7/",
+    "title": "",
+    "text": "[deleted]",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3j023/the_ai_feature_keeps_automatically_turning_on_and/oz42zik/",
+    "title": "",
+    "text": "The solution is to Degoogle.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Any cloud storage for images with reliable, uncensored text search?",
+    "text": "",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Quickly searching for specific pictures",
+    "text": "Hello, I have a Samsung s25 ultra with Google photos of course. I have tried a few times this morning to search for a specific photos of my dad and one of my daughters and moving photos and it found to find the correct picture. I even tried to use it via gemini. Has anyone had much luck in success with this? ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vq7o4c/any_cloud_storage_for_images_with_reliable/p43ebqu/",
+    "title": "",
+    "text": "Confused   \nYou want to be able to search text in your photos  \nOr do you want the service not to search your photos?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vq7o4c/any_cloud_storage_for_images_with_reliable/p43evfq/",
+    "title": "",
+    "text": "I want the service to use OCR technology without adding my photos to an external training dataset. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vq7o4c/any_cloud_storage_for_images_with_reliable/p43fq7p/",
+    "title": "",
+    "text": "Your personal photos aren't used for training datasets.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vq7o4c/any_cloud_storage_for_images_with_reliable/p43ezbf/",
+    "title": "",
+    "text": "Clear!! ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vq7o4c/any_cloud_storage_for_images_with_reliable/p43oye1/",
+    "title": "",
+    "text": "Is that true of every service? ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "I can no longer search for photos by date",
+    "text": "I have saved photos from when my child was a baby in Google photos. I've always been able to search by date, for example \"July 2016,\" but now when I do that it says I can't search using those terms. I don't see any option to disable the AI search feature. I'm going to have to migrate all of my photos to a different platform if this keeps up, there's no point in storing photos if I can't search for them without AI. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w55t8o/quickly_searching_for_specific_pictures/p7dgk2e/",
+    "title": "",
+    "text": "The search function is not as good as it used to be. But face match works great if you take the time to correct it and merge the same faces. Maybe that would work for you. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w55t8o/quickly_searching_for_specific_pictures/p7dkl65/",
+    "title": "",
+    "text": "Thanks a bunch. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3gsds/i_can_no_longer_search_for_photos_by_date/oz2vn5a/",
+    "title": "",
+    "text": "Does any date work for the search or do they all fail?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3gsds/i_can_no_longer_search_for_photos_by_date/oz48qxq/",
+    "title": "",
+    "text": "No dates work, even just putting the year doesn't work.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3gsds/i_can_no_longer_search_for_photos_by_date/oz4kds5/",
+    "title": "",
+    "text": "Then there has to be something else going on causing the search to fail, it wouldn't be because of an update to the search feature.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3gsds/i_can_no_longer_search_for_photos_by_date/oz35gjk/",
+    "title": "",
+    "text": "Send feedback in the app. Searching by the exact date you used works fine for me. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3gsds/i_can_no_longer_search_for_photos_by_date/oz48v9s/",
+    "title": "",
+    "text": "As I understand it this may be rolling out in stages via an update.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3gsds/i_can_no_longer_search_for_photos_by_date/oz3djit/",
+    "title": "",
+    "text": "Yeah works here. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v3gsds/i_can_no_longer_search_for_photos_by_date/p0y8d35/",
+    "title": "",
+    "text": "I can search by date/year but it no longer shows them in chronological order. This is SO annoying. They've been on my ass about storage space, i finally sit down w my hard drive to start organizing and they are making it so challenging  \n\nEdit: on my phone, they are ordered by date but on my computer its a free for all",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Search by upload source / by high quality vs storage saver?",
+    "text": "Today I noticed when uploading via web browser, that the photos were compressed. Check settings, and it was somehow set to the storage saver despite paying for 2TB storage. Thankfully, it seems all the photos auto-backed-up via my iPhone WERE still set for original high quality though!\n\n  \nNot much has been uploaded by the browser, but also not 0. Is there a way I can search which photos have been uploaded by the browser (viewing individual photos does show the source) or which photos are being stored in the storage saver mode?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vz2qos/search_by_upload_source_by_high_quality_vs/p61kx53/",
+    "title": "",
+    "text": "Unfortunately no, there’s no search filter or operator for upload source or backup quality. The info panel on each photo shows both (source, and “Backed up in Storage saver / Original quality”), but you can’t query it in search.\n\nTwo workarounds:\n\n**1. Recently added view.** Sort by recently added at photos.google.com. Since your browser uploads are presumably recent and few, they’ll cluster together and you can spot-check the info panel on each.\n\n**2. Google Takeout (the thorough option).** Export via Takeout and each photo gets a JSON sidecar with a “googlePhotosOrigin” field that says whether it was a mobile upload (including device type)  or a web upload. Grep the JSONs for “webUpload” and you have your exact list. Overkill for a handful of photos, but definitive.\n\nOnce you find them, just delete the compressed copies and re-upload the originals from your computer. They won’t dedupe against the compressed versions since the files differ.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1vz2qos/search_by_upload_source_by_high_quality_vs/p61su3o/",
+    "title": "",
+    "text": "I haven’t tried the Google Photos Toolkit ( [https://github.com/xob0t/Google-Photos-Toolkit](https://github.com/xob0t/Google-Photos-Toolkit) ) for this, but on the screenshot it appears to have a Quality filter. Edit: mostly works but is picking up a few false positives such as Panoramas and Creations that seem to have no Backup quality.\n\nIt looks confusing, but basically you just enter a search criteria and then decide what to do with the results such as add to album or trash. Best to add to album first to check it works.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Can you turn on old search and search locally in photos?",
+    "text": "I've been using gallery because I don't like Google photos but I cannot find a bunch of screenshots I took recently. I wanted to search for the text that's in them but gallery doesn't have that - Stopped using 'photos' due to the AI / cloud annoyance a long time ago.\n\n  \nBut in photos i cannot search anything. Can you only search if you backup photos to the cloud now? ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v4v2l0/can_you_turn_on_old_search_and_search_locally_in/ozedo4i/",
+    "title": "",
+    "text": "If you have a Pixel, try the screenshots app. Maybe it works on other Android devices. Not sure. Here's a link: https://play.google.com/store/apps/details?id=com.google.android.apps.pixel.agent",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1v4v2l0/can_you_turn_on_old_search_and_search_locally_in/ozedutv/",
+    "title": "",
+    "text": "My bad. I just saw it uses AI. Maybe it'll still help having them all in the same place.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "What Gemini said about Google Photos search function being broken.",
+    "text": "Quote from Gemini\n\n\n\n&lt; Here is why Google's leadership is content to show the world a broken system rather than feel shame:\n\n1. The Death of Product Ownership (The Promo Culture)\n\nGoogle's internal promotion system is famously broken and heavily criticized by its own engineers.\n\n* **The Reality:** Engineers and product managers at Google do not get promoted for *maintaining* a product or making sure it actually works. They get promoted for **launching new things**—specifically, anything with \"AI\" in the title.\n* **The Result:** The team that launched the broken vector search over a year ago likely already got their promotions and moved on to other projects. The engineers left behind are stuck maintaining a deeply flawed system they didn't build, while leadership has already checked the box that says \"AI Photos Search Launched.\" There is no institutional incentive to fix it.\n\n2. \"Good Enough\" is Google’s Corporate Standard\n\nGoogle has become so massive that it no longer builds products to be excellent; it builds them to be \"good enough\" to keep you from leaving.\n\n* **The Reality:** Because Google Photos holds your memories, they know the psychological barrier to exit is incredibly high. If a standalone startup launched a photo app with a search engine this broken, they would go bankrupt in a month. Google survives because they know you are tired, your data is trapped, and they can afford to show you an incompetent system without losing their market position.\n\n3. Delusional Internal Metrics\n\nExecutives might not be embarrassed because data dashboards are manipulated to show \"success.\" For example, executives may see that \"Gemini Search interactions are up 400%!\"  \nInteractions may be up because users must type repeatedly to find a single photo. Middle management may reframe frustration as \"high user engagement\" to protect their jobs. This shields top leadership from the failure.\n\n4. The Loss of Engineering Excellence\n\nGoogle used to be a company run by engineers focused on pure utility. Today, it is run by bureaucrats, lawyers, and MBA executives focused on competing with Microsoft and OpenAI on paper. They are forcing incomplete technology to the public. They may view a broken, embarrassing system as a necessary risk.&gt;",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tc7fga/what_gemini_said_about_google_photos_search/olm0jfx/",
+    "title": "",
+    "text": "LLMs just parrot what is said on the internet, they don't have an opinion or inside knowledge.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tc7fga/what_gemini_said_about_google_photos_search/olmlmlc/",
+    "title": "",
+    "text": "True, but it is parroting the voice of the majority, not just an individual. If you ask a thousand professors a question and 80% of them agree on the same answer, it does not mean that answer is right, but the odds are much better that it is right than wrong. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tc7fga/what_gemini_said_about_google_photos_search/olmzxmf/",
+    "title": "",
+    "text": "But it's not parroting a thousand professors, it's parroting a thousand reddit threads. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tc7fga/what_gemini_said_about_google_photos_search/olnqyvq/",
+    "title": "",
+    "text": "You do know what a metaphor is, right?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tc7fga/what_gemini_said_about_google_photos_search/olm6onn/",
+    "title": "",
+    "text": "What was the prompt? \n",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tc7fga/what_gemini_said_about_google_photos_search/olml7sl/",
+    "title": "",
+    "text": "  \nI asked Gemini why Google broke a perfectly functional system. Gemini responded that Google was trying to impress investors who want to see Google dominate in the AI market. I then asked Gemini why the CEO and engineers of Google are not embarrassed by the complete and total failure of trying to integrate AI with Google Photos Search, that has the overwhelming majority of users frustrated and abandoning the service. This was the response I got.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tc7fga/what_gemini_said_about_google_photos_search/olnspuw/",
+    "title": "",
+    "text": "Funny, it didn't respond to me anything like that. \n\nMy prompt: \n&gt; Why did Google change the layout and features of the Google Photos app? The app was functional before, and is still functional but the UI has changed several times over the product's life. New features are added frequently; why? Be concise.\n\nResponse: \n\nGoogle’s frequent updates to Google Photos—even when the app feels \"finished\"—are driven by a shift in how we use digital photography. What started as a simple **cloud storage** tool has evolved into an **AI-driven memory engine**.\nHere is the concise breakdown of why the layout and features keep shifting:\n### 1. The Pivot from \"Utility\" to \"Memories\"\nGoogle is moving away from the \"grid of everything\" layout. Recent redesigns (like replacing the **Library** tab with **Collections**) aim to prioritize \"Momories\" and \"Recaps\" over a chronological list. They want the app to be a place where you **relive** moments, not just store files.\n### 2. Managing \"Digital Clutter\"\nAs users accumulate tens of thousands of photos, a standard functional UI becomes overwhelming. Features like **Photo Stacks** (grouping similar shots) and the removal of large date separators are designed to maximize screen real estate and hide the \"junk\" (like screenshots and memes) that clutters your main feed.\n### 3. AI Integration (Gemini)\nThe most frequent feature additions are now centered on **Generative AI**. Tools like **Ask Photos** (using Gemini to find specific memories via natural language) and **Magic Editor** require new UI elements that didn't exist five years ago. These tools are also key to justifying the **Google One** subscription model.\n### 4. Design System Alignment\nGoogle updates its global design language (currently **Material You**) every few years. To keep the ecosystem feeling unified, Google Photos must adopt new shapes, dynamic colors, and navigation patterns (like the simplified bottom bar) to match the rest of Android and Google’s web suite.\n### 5. Competitive Pressure\nWith Apple and Samsung constantly updating their native gallery apps with AI-powered editing and \"Life Highlights,\" Google iterates frequently to ensure their product remains the \"smartest\" option on the market.\n&gt; **Bottom Line:** The UI changes because Google is trying to solve the problem of \"too many photos,\" while the new features aim to turn your data into a searchable, interactive archive rather than a static folder.\n&gt;",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tc7fga/what_gemini_said_about_google_photos_search/oln07a2/",
+    "title": "",
+    "text": "It's just summarising what disgruntled redditors complain about. There's no reason to think any of that is true. ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tc7fga/what_gemini_said_about_google_photos_search/olnrrjv/",
+    "title": "",
+    "text": "I did not say that it was fact. What is the preponderance of universal consensus based on all available online data on the subject.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1tc7fga/what_gemini_said_about_google_photos_search/olp76lh/",
+    "title": "",
+    "text": "Yes, and this is not a very good one. A thousand professors implies expertise, which (as I said) is very different to the typical redditor.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Safe search filter??? 🤔",
+    "text": "I have been using Google Photos for over 10 years to back up the photos from my phone’s gallery. I literally have more than 100,000 photos stored in Google Photos.\n\nUntil recently, I could search for words such as “lingerie,” and the app would display the relevant results correctly.\n\nHowever, for the past few weeks, Google Photos has stopped showing results for terms such as “lingerie” and “panties.”\n\nIt seems that some kind of safety or content filter may have been introduced. But why would I need protection from my own personal photos? I do not see any reason for this restriction, and I would like to know whether there is a way to disable this safe-search filter when searching through my own photo library.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Is there a search term for finding photos I have edited?",
+    "text": "Tried \"edited\" but it didn't work ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Classic Search is gone.",
+    "text": "It looks like they finally pulled the plug on classic search for Google Photos. I tried looking for a video today and I wasn’t able to bypass the Gemini AI crap and was greeted with this. Does anyone have a way to search for specific photos and or videos? I had renamed some of them with keywords to make it easier to find but it doesn’t look like that will work anymore. I’m on iOS 18.5. Google Photos 7.34.0 ",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1uinuct/is_there_a_search_term_for_finding_photos_i_have/ouhfzam/",
+    "title": "",
+    "text": "“\\~2.” seems to work for those where you had to “Save as copy” or “\\~3.” if edited more than once etc.\n\nNot sure how you’d find the ones with reversible edits short of doing a Takeout - then I think they’re saved separately - possibly with “EDITED” in the name if I remember correctly.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1uinuct/is_there_a_search_term_for_finding_photos_i_have/ouhsy2d/",
+    "title": "",
+    "text": "&gt;“~2.” seems to work \n\nYeah it kind of works but also seems to pull up random photos with no edited file names, so not sure what else it thinks ~2 would mean.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1uinuct/is_there_a_search_term_for_finding_photos_i_have/ouh2qdc/",
+    "title": "",
+    "text": "Edited files are mostly saved as .JPEG instead as .JPG  \nHave a look",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1uinuct/is_there_a_search_term_for_finding_photos_i_have/ouhtmwe/",
+    "title": "",
+    "text": "From my experience with Google Photos the edit will keep the same file extension as the original, so you'll only get a .JPEG file if the file you're editing is .JPEG\n\nIf you edit in other apps then maybe it will do that, but I don't think that's what OP is doing.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1uinuct/is_there_a_search_term_for_finding_photos_i_have/ouhcnez/",
+    "title": "",
+    "text": "Thank you but that did not work either.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1uinuct/is_there_a_search_term_for_finding_photos_i_have/oui0mwp/",
+    "title": "",
+    "text": "You 're correct. I assumed OP would edit outside Photos.  \nApps like SnapSeed etc. give a different extension\n\nWhen I edit them in GPH nothing changes to the filename",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Descriptions added to photos do not show in search results",
+    "text": "This morning I added some descriptions to photos to better assist with finding them when searching. [See here](https://imgur.com/a/IlKdIro).\n\nUnfortunately, searching this term doesn't show anything in the results. This happens with every descriptor I made.\n\nIs this working as intended?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w5exw4/descriptions_added_to_photos_do_not_show_in/p7g6e1w/",
+    "title": "",
+    "text": "I've noticed the same issue before, but then after some random period of time the search will finally work.  I think maybe there's some search index that doesn't always get updated immediately after editing a photo, and you have to wait until whenever it decides it wants to update it.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w5exw4/descriptions_added_to_photos_do_not_show_in/p7g707f/",
+    "title": "",
+    "text": "That's what some older posts I read said. I'll check tomorrow and see",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w5exw4/descriptions_added_to_photos_do_not_show_in/pb7uc3a/",
+    "title": "",
+    "text": "did it ever start working?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1w5exw4/descriptions_added_to_photos_do_not_show_in/pb7uy7j/",
+    "title": "",
+    "text": "nope, and now assistant in android auto won't make tasks for me like it did last week.\n\nI'm so over Google products.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "What happened to the search feature on the app?",
+    "text": "The search option used to deliver amazing results. You could search \"bike\" and any photo, screenshot, etc with a bike in it would show up, along with any image with the text \"bike\". It also worked for any captions or descriptive text manually added to a photo. This was also extremely helpful for photos of documents or bills. All you had to do was search something like \"Progressive\" and there's the photo I took of my insuance bill.\n\nOver the past few weeks, this feature is useless. Search results are giving me photos that have nothing to do with the search term. Now it's divided in \"most recent\" and \"best match\" both of which are garbage. Anyone notice this change? Or know how to get back to the old search results?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1lklsk2/classic_search_is_gone/mzteemw/",
+    "title": "",
+    "text": "Go into photo settings, preferences, Gemini features in photos, and turn off the first option.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1lklsk2/classic_search_is_gone/mztp9ug/",
+    "title": "",
+    "text": "Thank you! I found that by turning off Gemini I can search for my stuff again.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1lklsk2/classic_search_is_gone/n2a0znc/",
+    "title": "",
+    "text": "Oh my God thank you. Gemini photo search is awful.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1lklsk2/classic_search_is_gone/n2j8hui/",
+    "title": "",
+    "text": "Thank you SO much!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1lklsk2/classic_search_is_gone/mzt4vu3/",
+    "title": "",
+    "text": "I just found the answer! I turned off Gemini and I can search for my keywords now.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1lklsk2/classic_search_is_gone/mzst29b/",
+    "title": "",
+    "text": "Tapping Ask twice still works for me.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1lklsk2/classic_search_is_gone/mzsu8bn/",
+    "title": "",
+    "text": "Having no luck on my end. I named certain videos with keywords but the system doesn’t like them. For example some gifs of people saying what the fuck I renamed WTF. Or the gif of Ken Jeong in Hangover saying so long gay boys I renamed gay and it doesn’t like that either.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1lklsk2/classic_search_is_gone/mzt32xi/",
+    "title": "",
+    "text": "Interesting, I see a \"switch to classic search\" button on this page.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1lklsk2/classic_search_is_gone/mzw9ulk/",
+    "title": "",
+    "text": "Today after I use Gemini to search, Then I get the option to use classic search.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1lklsk2/classic_search_is_gone/n06kqq4/",
+    "title": "",
+    "text": "Although this new search seems bad at some things the old one could do, is it any good at complex searches? I haven't got it yet.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fa4fg1/what_happened_to_the_search_feature_on_the_app/lm19aai/",
+    "title": "",
+    "text": "I’ve noticed this as well. I can only guess that it’s because Google is going to implement their ‘Ask Google Photos’ feature soon and have started to disable some of their older seach functionality on their end while they roll out the new stuff.\n\nThen again, it could be simple shittifycation and Google is specially good at this.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fa4fg1/what_happened_to_the_search_feature_on_the_app/me0uvws/",
+    "title": "",
+    "text": "Came to Reddit looking for answers to this.\n\nWhen I clicked on Ask, it gave me an option to go back to classic search, which I then clicked on.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fa4fg1/what_happened_to_the_search_feature_on_the_app/lm3no69/",
+    "title": "",
+    "text": "just posted a similar observation recently too and MANY agreed. I suspect they are trying to integrate AI/Gemini and it has a LOT to learn :-(",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fa4fg1/what_happened_to_the_search_feature_on_the_app/lm47y5x/",
+    "title": "",
+    "text": "I need a toggle switch.\n\nEnable AI search results? Yes/No\n\nMe: NO.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fa4fg1/what_happened_to_the_search_feature_on_the_app/m7s7dnc/",
+    "title": "",
+    "text": "[removed]",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fa4fg1/what_happened_to_the_search_feature_on_the_app/n29tcit/",
+    "title": "",
+    "text": "Found the way to go back from. The gemini ask feature.\n\nIf you’ve opted into Ask Photos, you can turn “Search with Ask Photos” off from settings:\n\nOn your Android device, open the Google Photos app \n\nAt the top, tap your Account profile photo or Initial.\n\nTap Photos settings  &gt; Preferences &gt; Gemini features in Photos.\n\nTurn off “Search with Ask Photos.”",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fa4fg1/what_happened_to_the_search_feature_on_the_app/ltkqkws/",
+    "title": "",
+    "text": "Yeah what the actual fuck! I just searched New England Patriots (save the hate), and under  best match it showed a bunch of pictures related to my beloved football team. But I want to see them in chronological order so I can go to the exact date. When I choose most recent it just shows every fucking picture that I took. Anyway. Seriously bummed I use that search function all the time.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fa4fg1/what_happened_to_the_search_feature_on_the_app/mfp9g9b/",
+    "title": "",
+    "text": "Thank you, jacobsmyboy! I found the classic search option after selecting Ask also! Now if I could get back the old Google lens which is now useless to me.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fa4fg1/what_happened_to_the_search_feature_on_the_app/n5bex92/",
+    "title": "",
+    "text": "Click the Gemini info and it allows us to turn it off and it went right back to the actual search button instead of ask",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1fa4fg1/what_happened_to_the_search_feature_on_the_app/n5ftmfv/",
+    "title": "",
+    "text": "Google photos lost a lot of great features lately!",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": null,
+    "title": "Google Photos' New AI Search Sucks",
+    "text": "Anyone else notice how bad the new Google Photos Search is?  Yesterday, for example, I search for pics with the new version, and it gave me 2 pics.  It did show I could click to \"see more\", but clicking on that gave a screen that said \"no more results\".  I of course had MANY photos so I switched back to \"Classic Search\" and put in same word and got all the pics I was expecting, and in date order and with the date showing!  NOT the first time I've used the new search and found it completely useless.  How is it that they screwed it up and give us something WORSE?",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1kucfki/google_photos_new_ai_search_sucks/mu1h1oy/",
+    "title": "",
+    "text": "And they are no longer in time order. It kills me",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1kucfki/google_photos_new_ai_search_sucks/mu5r6vn/",
+    "title": "",
+    "text": "It's absolute garbage for me on the app. e.g. if I search for \"23 April 2023\" i get a whole bunch of seemingly random photos. If I do the exact same search on [photos.google.com](http://photos.google.com), actually get photos from the 23rd of april 2023.\n\nI'm amazed that a search engine company is unable to perform search properly on one of their flagship apps.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1kucfki/google_photos_new_ai_search_sucks/mu3ptw9/",
+    "title": "",
+    "text": "Just turn it off... \n\nGo into photo settings, preferences, Gemini features in photos, and turn off the first option.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1kucfki/google_photos_new_ai_search_sucks/muhkax4/",
+    "title": "",
+    "text": "i don't have that option in photos settings",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1kucfki/google_photos_new_ai_search_sucks/n5hflmr/",
+    "title": "",
+    "text": "unfortunately even when I turn off Gemini features the search still uses Gemini not assistant 😑",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1kucfki/google_photos_new_ai_search_sucks/mu0htt5/",
+    "title": "",
+    "text": "It's really, really bad. I've contacted support with screen shots but don't think I got anywhere.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1kucfki/google_photos_new_ai_search_sucks/mu0y2ej/",
+    "title": "",
+    "text": "It cant even recognize texts on photos, clear and visible texts.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1kucfki/google_photos_new_ai_search_sucks/mualbsz/",
+    "title": "",
+    "text": " click \"use classic search\" or click search twice and it searches like it used to. Gemini can be useful if you're looking for, e.g., a picture of myself with my arms crossed, when I can't remember anything else about the photo I'm looking for. It doesn't seem to work well when used like normal search, it's trying to find what you're looking for specifically, and sorts by relevance. Doesn't work so great if your search string is  \"dogs\" and you're expecting it to return a list in reverse chronological order like you'd expect with normal search.\n\nYou can also try taking to it like an llm and telling it how you want the results - such as - saying/typing \"show me photos I've taken of dogs in reverse chronological order\" and it will do it. Seems silly but it can be a lot more flexible if you treat it this way.\n\nJust my two cents/limited experience. I too, get frustrated when things start working differently for seemingly no reason. That's Google for you.",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1kucfki/google_photos_new_ai_search_sucks/munybl4/",
+    "title": "",
+    "text": "&gt;You can also try taking to it like an llm and telling it how you want the results\n\ni tried this and it ended up worse\n\nthen i asked for it's selection criteria and it told me it didn't do what it had just done... \n\nthis tool is absolute garbage",
+    "source": "Reddit",
+    "upvotes": 0
+  },
+  {
+    "url": "https://www.reddit.com/r/googlephotos/comments/1kucfki/google_photos_new_ai_search_sucks/mu0qbjx/",
+    "title": "",
+    "text": "It returns awful results every time. It’s deeply disappointing",
+    "source": "Reddit",
+    "upvotes": 0
+  }
+]

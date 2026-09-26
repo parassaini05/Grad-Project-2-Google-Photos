@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Photos AI Discovery Engine</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#0a0a0a',
+              card: '#121216',
+              border: '#24242e',
+              neonBlue: '#38bdf8',
+              neonPurple: '#c084fc',
+              accentCyan: '#06b6d4',
+              accentViolet: '#8b5cf6'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
+          },
+          animation: {
+            'pulse-glow': 'pulseGlow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'shimmer': 'shimmer 2.5s linear infinite',
+            'float': 'float 6s ease-in-out infinite'
+          },
+          keyframes: {
+            pulseGlow: {
+              '0%, 100%': { opacity: '0.4', filter: 'blur(24px)' },
+              '50%': { opacity: '0.8', filter: 'blur(30px)' }
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-6px)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      background-color: #0a0a0a;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+    .glass-panel {
+      background: rgba(18, 18, 24, 0.72);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+    .glass-card-glow {
+      position: relative;
+      background: rgba(16, 16, 22, 0.85);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(139, 92, 246, 0.22);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-card-glow:hover {
+      border-color: rgba(168, 85, 247, 0.55);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 36px -8px rgba(168, 85, 247, 0.25), 0 0 15px rgba(56, 189, 248, 0.15);
+    }
+    .glass-card-cyan:hover {
+      border-color: rgba(56, 189, 248, 0.6);
+      box-shadow: 0 12px 36px -8px rgba(56, 189, 248, 0.25);
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f0f13;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2a2a38;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4a4a60;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.35s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#0a0a0a] text-slate-100 selection:bg-purple-500/30 selection:text-purple-200">
+
+  <!-- Ambient background glow elements -->
+  <div class="fixed top-[-100px] left-1/4 w-[500px] h-[350px] bg-purple-600/15 rounded-full pointer-events-none blur-[120px] -z-10"></div>
+  <div class="fixed top-[20%] right-[-80px] w-[450px] h-[450px] bg-cyan-500/10 rounded-full pointer-events-none blur-[140px] -z-10"></div>
+  <div class="fixed bottom-[-100px] left-1/3 w-[600px] h-[300px] bg-blue-600/10 rounded-full pointer-events-none blur-[130px] -z-10"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-50 glass-panel border-b border-white/[0.07] px-6 py-3.5">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      
+      <!-- Brand Logo & Badge -->
+      <div class="flex items-center gap-3.5">
+        <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 via-slate-900 to-cyan-500/20 border border-white/10 shadow-inner group">
+          <!-- Google Photos 4-color pinwheel minimalist stylized glow icon -->
+          <div class="w-5 h-5 relative flex items-center justify-center">
+            <span class="absolute w-2.5 h-2.5 rounded-full bg-red-400 -top-0.5 -left-0.5 opacity-90"></span>
+            <span class="absolute w-2.5 h-2.5 rounded-full bg-yellow-400 -top-0.5 -right-0.5 opacity-90"></span>
+            <span class="absolute w-2.5 h-2.5 rounded-full bg-green-400 -bottom-0.5 -right-0.5 opacity-90"></span>
+            <span class="absolute w-2.5 h-2.5 rounded-full bg-blue-400 -bottom-0.5 -left-0.5 opacity-90"></span>
+            <span class="absolute w-1.5 h-1.5 rounded-full bg-white z-10 shadow-sm"></span>
+          </div>
+          <span class="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">Google Photos</span>
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wider uppercase bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-purple-300 border border-purple-500/30">AI Discovery</span>
+          </div>
+          <p class="text-[11px] text-slate-400 flex items-center gap-1.5 font-mono">
+            <span>RAG Semantic Core</span>
+            <span class="inline-block w-1 h-1 rounded-full bg-slate-600"></span>
+            <span class="text-cyan-400 font-medium">ChromaDB v2.4</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (4 Central Tabs as requested) -->
+      <nav class="flex items-center gap-1.5 p-1 bg-black/40 rounded-xl border border-white/5 shadow-inner">
+        <!-- Tab 1: Detailed Discovery Report / Dashboard (Default Active) -->
+        <button id="nav-dashboard" onclick="switchTab('dashboard')" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all duration-200 bg-gradient-to-r from-purple-600/30 to-blue-600/30 text-white border border-purple-500/40 shadow-sm">
+          <i data-lucide="bar-chart-3" class="w-4 h-4 text-purple-400"></i>
+          <span>Detailed Discovery Report</span>
+        </button>
+
+        <!-- Tab 2: Actual Reviews -->
+        <button id="nav-reviews" onclick="switchTab('reviews')" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]">
+          <i data-lucide="message-square" class="w-4 h-4 text-slate-400"></i>
+          <span>Actual Reviews</span>
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">80</span>
+        </button>
+
+        <!-- Tab 3: Live Engine -->
+        <button id="nav-engine" onclick="switchTab('engine')" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]">
+          <i data-lucide="activity" class="w-4 h-4 text-slate-400"></i>
+          <span>Live Scraper Engine</span>
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        </button>
+
+        <!-- Tab 4: PM Copilot / How It Works -->
+        <button id="nav-copilot" onclick="switchTab('copilot')" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]">
+          <i data-lucide="bot" class="w-4 h-4 text-cyan-400"></i>
+          <span>PM Copilot & System</span>
+        </button>
+      </nav>
+
+      <!-- Right Utility Actions -->
+      <div class="flex items-center gap-3">
+        <div class="hidden md:flex items-center gap-2 text-xs font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] px-3 py-1.5 rounded-lg">
+          <span class="inline-block w-2 h-2 rounded-full bg-cyan-400"></span>
+          <span>Vector Ingestion: 80 Signals</span>
+        </div>
+        <button onclick="triggerDataSync(this)" class="px-3.5 py-1.5 text-xs font-medium bg-white/[0.06] hover:bg-white/[0.1] active:scale-95 text-slate-200 border border-white/10 rounded-lg flex items-center gap-1.5 transition">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-slate-400"></i>
+          <span>Sync ChromaDB</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-8">
+
+    <!-- ================================================================= -->
+    <!-- TAB 1: DETAILED DISCOVERY REPORT (DEFAULT ACTIVE VIEW)             -->
+    <!-- ================================================================= -->
+    <div id="tab-dashboard" class="tab-content active space-y-8">
+      
+      <!-- Header Banner / Breadcrumb & Controls -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/[0.06]">
+        <div>
+          <div class="flex items-center gap-2 text-xs text-purple-400 font-mono mb-1">
+            <span class="uppercase tracking-widest">Executive Research Digest</span>
+            <span>/</span>
+            <span class="text-slate-400">Feedback Signal Pipeline</span>
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+            <span>Detailed Discovery Report</span>
+            <span class="text-xs px-2.5 py-0.5 font-mono rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">N = 347 Analyzed</span>
+          </h1>
+          <p class="text-sm text-slate-400 mt-1 max-w-2xl">
+            Synthesized insights mapping user cognitive recall patterns against Google Photos image retrieval failures.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 self-start sm:self-auto">
+          <span class="text-xs text-slate-400 font-mono">Dataset version: <strong>2024.Q4-Live</strong></span>
+          <button onclick="window.print()" class="p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] transition" title="Export PDF Report">
+            <i data-lucide="download" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Section A: Data Synthesis & Metrics (Glassmorphic Metric Cards) -->
+      <section class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs uppercase font-mono tracking-wider text-slate-400 flex items-center gap-2">
+            <i data-lucide="layers" class="w-3.5 h-3.5 text-purple-400"></i>
+            Section A: Data Synthesis &amp; Primary Metrics
+          </h2>
+          <span class="text-xs text-slate-500 font-mono">Confidence Level: 98.4%</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          
+          <!-- Metric Card 1: Total Analyzed Feedback -->
+          <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group hover:border-purple-500/40 transition-all duration-300">
+            <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all"></div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Analyzed Feedback</span>
+              <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                <i data-lucide="database" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div class="flex items-baseline gap-2 mb-2">
+              <span class="text-4xl font-extrabold text-white tracking-tight font-mono">347</span>
+              <span class="text-xs font-semibold text-purple-300 uppercase tracking-wider">Sources</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Raw multi-platform feedback scraped from Play Store reviews, Reddit r/googlephotos, and official community threads.
+            </p>
+            <div class="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-slate-500">
+              <span>Verified Ingestion</span>
+              <span class="text-emerald-400 flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 100% Parsed</span>
+            </div>
+          </div>
+
+          <!-- Metric Card 2: High-Intent Friction Signals -->
+          <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group hover:border-cyan-500/40 transition-all duration-300">
+            <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-all"></div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">High-Intent Friction Signals</span>
+              <div class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div class="flex items-baseline gap-2 mb-2">
+              <span class="text-4xl font-extrabold text-white tracking-tight font-mono">80</span>
+              <span class="text-xs font-semibold text-cyan-300 uppercase tracking-wider">Signals</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Filtered struggles where users had an urgent retrieval intent but experienced critical zero-result or wrong-result fallbacks.
+            </p>
+            <div class="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-slate-500">
+              <span>Signal Density</span>
+              <span class="text-cyan-300 font-semibold">23.05% of Total Corpus</span>
+            </div>
+          </div>
+
+          <!-- Metric Card 3: Primary Failure Mode -->
+          <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group hover:border-pink-500/40 transition-all duration-300">
+            <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-pink-500/10 rounded-full blur-2xl group-hover:bg-pink-500/20 transition-all"></div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Primary Failure Mode</span>
+              <div class="w-9 h-9 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400">
+                <i data-lucide="zap-off" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div class="flex items-baseline gap-2 mb-2">
+              <span class="text-2xl font-extrabold text-white tracking-tight">Semantic Mismatch</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Users search by emotional vibe, atmospheric color, or contextual milestones, while the index strictly inspects object tags and OCR text.
+            </p>
+            <div class="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-slate-500">
+              <span>Dominant Gap Driver</span>
+              <span class="text-pink-400 font-semibold">Vibe &ne; Object Label</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Section B: Core Gap Analysis (Two Side-by-Side Horizontal Bar Charts) -->
+      <section class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs uppercase font-mono tracking-wider text-slate-400 flex items-center gap-2">
+            <i data-lucide="split" class="w-3.5 h-3.5 text-cyan-400"></i>
+            Section B: Core Gap Analysis (Human Recall vs System Metadata)
+          </h2>
+          <span class="text-xs text-slate-500 font-mono">Cognitive Psychology Mapping</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          <!-- Chart 1: What Users Remember (The Clues) - Neon Purple -->
+          <div class="glass-panel p-6 rounded-2xl space-y-5 border-l-4 border-l-purple-500">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-sm shadow-purple-500"></span>
+                  <h3 class="text-base font-bold text-white tracking-tight">What Users Remember</h3>
+                  <span class="text-xs font-mono text-purple-300">(The Clues)</span>
+                </div>
+                <p class="text-xs text-slate-400">Top-of-mind cognitive recall hooks reported across search queries.</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-md text-[11px] font-mono bg-purple-500/10 text-purple-300 border border-purple-500/30">
+                Neon Purple Cluster
+              </span>
+            </div>
+
+            <!-- Horizontal Bars -->
+            <div class="space-y-4 pt-2">
+              
+              <!-- Item 1: Visual Aesthetics (60%) -->
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="font-medium text-slate-200 flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-400"></i>
+                    Visual Aesthetics &amp; Vibe ("dark moody room", "golden sunset")
+                  </span>
+                  <span class="font-mono font-bold text-purple-300">60%</span>
+                </div>
+                <div class="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden p-0.5 border border-white/5">
+                  <div class="h-full rounded-full bg-gradient-to-r from-purple-600 via-purple-500 to-fuchsia-400 shadow-[0_0_12px_rgba(192,132,252,0.6)] transition-all duration-1000 ease-out" style="width: 60%"></div>
+                </div>
+              </div>
+
+              <!-- Item 2: Specific Objects (15%) -->
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="font-medium text-slate-300 flex items-center gap-1.5">
+                    <i data-lucide="box" class="w-3.5 h-3.5 text-purple-400/80"></i>
+                    Specific Objects ("vintage green mug", "neon sign")
+                  </span>
+                  <span class="font-mono font-bold text-purple-300">15%</span>
+                </div>
+                <div class="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden p-0.5 border border-white/5">
+                  <div class="h-full rounded-full bg-purple-500/70 shadow-[0_0_8px_rgba(192,132,252,0.4)] transition-all duration-1000 ease-out" style="width: 15%"></div>
+                </div>
+              </div>
+
+              <!-- Item 3: Fuzzy Timeframes (10%) -->
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="font-medium text-slate-300 flex items-center gap-1.5">
+                    <i data-lucide="clock" class="w-3.5 h-3.5 text-purple-400/80"></i>
+                    Fuzzy Timeframes ("around college graduation", "summer before COVID")
+                  </span>
+                  <span class="font-mono font-bold text-purple-300">10%</span>
+                </div>
+                <div class="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden p-0.5 border border-white/5">
+                  <div class="h-full rounded-full bg-purple-500/50 shadow-[0_0_8px_rgba(192,132,252,0.3)] transition-all duration-1000 ease-out" style="width: 10%"></div>
+                </div>
+              </div>
+
+              <!-- Item 4: Colors (5%) -->
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="font-medium text-slate-400 flex items-center gap-1.5">
+                    <i data-lucide="palette" class="w-3.5 h-3.5 text-purple-400/60"></i>
+                    Isolated Accent Colors ("bright teal", "crimson dress")
+                  </span>
+                  <span class="font-mono font-bold text-purple-300">5%</span>
+                </div>
+                <div class="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden p-0.5 border border-white/5">
+                  <div class="h-full rounded-full bg-purple-500/30 transition-all duration-1000 ease-out" style="width: 5%"></div>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="p-3 rounded-xl bg-purple-500/[0.06] border border-purple-500/20 text-xs text-purple-200/90 leading-relaxed">
+              <strong class="text-white">Takeaway:</strong> 75% of recall cues are purely intuitive (moods, lighting, emotional anchors) rather than technical tags.
+            </div>
+          </div>
+
+          <!-- Chart 2: What Users Forget (The Gaps) - Neon Blue -->
+          <div class="glass-panel p-6 rounded-2xl space-y-5 border-l-4 border-l-cyan-500">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-500"></span>
+                  <h3 class="text-base font-bold text-white tracking-tight">What Users Forget</h3>
+                  <span class="text-xs font-mono text-cyan-300">(The Gaps)</span>
+                </div>
+                <p class="text-xs text-slate-400">Strict metadata attributes that standard engines expect users to supply.</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-md text-[11px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+                Neon Blue Cluster
+              </span>
+            </div>
+
+            <!-- Horizontal Bars -->
+            <div class="space-y-4 pt-2">
+              
+              <!-- Item 1: Exact Dates (65%) -->
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="font-medium text-slate-200 flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-cyan-400"></i>
+                    Exact Calendar Dates &amp; Precise Years ("June 14, 2018")
+                  </span>
+                  <span class="font-mono font-bold text-cyan-300">65%</span>
+                </div>
+                <div class="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden p-0.5 border border-white/5">
+                  <div class="h-full rounded-full bg-gradient-to-r from-blue-600 via-cyan-500 to-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.6)] transition-all duration-1000 ease-out" style="width: 65%"></div>
+                </div>
+              </div>
+
+              <!-- Item 2: Locations (15%) -->
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="font-medium text-slate-300 flex items-center gap-1.5">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5 text-cyan-400/80"></i>
+                    Exact Geo-tag / City Names ("Prefecture vs Tokyo")
+                  </span>
+                  <span class="font-mono font-bold text-cyan-300">15%</span>
+                </div>
+                <div class="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden p-0.5 border border-white/5">
+                  <div class="h-full rounded-full bg-cyan-500/70 shadow-[0_0_8px_rgba(56,189,248,0.4)] transition-all duration-1000 ease-out" style="width: 15%"></div>
+                </div>
+              </div>
+
+              <!-- Item 3: File Names (10%) -->
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="font-medium text-slate-300 flex items-center gap-1.5">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5 text-cyan-400/80"></i>
+                    Camera Filenames ("IMG_4920.HEIC", "PXL_20220901")
+                  </span>
+                  <span class="font-mono font-bold text-cyan-300">10%</span>
+                </div>
+                <div class="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden p-0.5 border border-white/5">
+                  <div class="h-full rounded-full bg-cyan-500/50 shadow-[0_0_8px_rgba(56,189,248,0.3)] transition-all duration-1000 ease-out" style="width: 10%"></div>
+                </div>
+              </div>
+
+              <!-- Item 4: Context (5%) -->
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="font-medium text-slate-400 flex items-center gap-1.5">
+                    <i data-lucide="network" class="w-3.5 h-3.5 text-cyan-400/60"></i>
+                    Original Album Names / Group Share Tags
+                  </span>
+                  <span class="font-mono font-bold text-cyan-300">5%</span>
+                </div>
+                <div class="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden p-0.5 border border-white/5">
+                  <div class="h-full rounded-full bg-cyan-500/30 transition-all duration-1000 ease-out" style="width: 5%"></div>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="p-3 rounded-xl bg-cyan-500/[0.06] border border-cyan-500/20 text-xs text-cyan-200/90 leading-relaxed">
+              <strong class="text-white">Failure Root:</strong> Systems forcing chronological timeline scrub (scrolling through 2017–2022) induce maximum abandonment.
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Section C: The Detailed Discovery Report (Three Large Insight Cards with Glowing Borders) -->
+      <section class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xs uppercase font-mono tracking-wider text-slate-400 flex items-center gap-2">
+              <i data-lucide="file-search" class="w-3.5 h-3.5 text-purple-400"></i>
+              Section C: The Detailed Discovery Report (Primary Failure Drivers)
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">In-depth qualitative &amp; quantitative breakdown of the 3 primary friction archetypes.</p>
+          </div>
+          <span class="text-xs font-mono text-purple-400 bg-purple-500/10 px-2 py-1 rounded border border-purple-500/20">3 Core Architectural Gaps</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          <!-- Card 1 - The Semantic Aesthetic Gap -->
+          <div class="glass-card-glow p-6 rounded-2xl flex flex-col justify-between space-y-5">
+            <div class="space-y-4">
+              <!-- Header & Tag -->
+              <div class="flex items-center justify-between">
+                <span class="px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                  Archetype 01
+                </span>
+                <div class="flex items-center gap-1 text-purple-400 text-xs font-mono">
+                  <i data-lucide="target" class="w-3.5 h-3.5"></i>
+                  <span>60% Signal Weight</span>
+                </div>
+              </div>
+
+              <!-- Title -->
+              <div>
+                <h3 class="text-lg font-bold text-white tracking-tight leading-snug">The Semantic Aesthetic Gap</h3>
+                <p class="text-xs font-medium text-purple-400 font-mono mt-0.5">Implicit Vibe vs Exact Object Classification</p>
+              </div>
+
+              <!-- Core Insight -->
+              <div class="space-y-1.5 text-xs text-slate-300 leading-relaxed">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block font-mono">Core Insight</span>
+                <p>
+                  Users frequently remember the <em>"vibe"</em> or visual aesthetic of a photo (e.g., "dark red room" or "sunset with purple sky"), but current exact-keyword searches fail to retrieve these implicit concepts because current vision models tag discrete objects (e.g., "chair", "table") rather than affective lighting and atmosphere.
+                </p>
+              </div>
+
+              <!-- Data Proof Badge Box -->
+              <div class="p-3.5 rounded-xl bg-purple-950/40 border border-purple-500/30">
+                <div class="flex items-center gap-2 mb-1">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-purple-400"></i>
+                  <span class="text-[11px] font-bold uppercase tracking-wider text-purple-200 font-mono">Data Proof</span>
+                </div>
+                <p class="text-xs text-purple-300/90 font-medium">
+                  <strong>60%</strong> of analyzed reviews specifically cited aesthetic/environmental memory as their primary search query hook vs. object memory.
+                </p>
+              </div>
+            </div>
+
+            <!-- Raw Quote Box -->
+            <div class="pt-4 border-t border-white/[0.08] space-y-2">
+              <span class="text-[10px] font-mono uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <i data-lucide="quote" class="w-3 h-3 text-purple-400"></i>
+                Raw User Quote
+              </span>
+              <blockquote class="text-xs italic text-slate-300 bg-black/40 p-3 rounded-lg border border-purple-500/20 leading-relaxed">
+                &ldquo;I just want to search for &lsquo;neon sign&rsquo; and find the picture I took in Tokyo, but it only shows me screenshots of text with the word neon.&rdquo;
+              </blockquote>
+              <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                <span>Source: Reddit r/googlephotos</span>
+                <span class="text-purple-400">Upvotes: 142</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2 - Fuzzy Time Bracketing Failure -->
+          <div class="glass-card-glow glass-card-cyan p-6 rounded-2xl flex flex-col justify-between space-y-5">
+            <div class="space-y-4">
+              <!-- Header & Tag -->
+              <div class="flex items-center justify-between">
+                <span class="px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                  Archetype 02
+                </span>
+                <div class="flex items-center gap-1 text-cyan-400 text-xs font-mono">
+                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                  <span>65% Gap Driver</span>
+                </div>
+              </div>
+
+              <!-- Title -->
+              <div>
+                <h3 class="text-lg font-bold text-white tracking-tight leading-snug">Fuzzy Time Bracketing Failure</h3>
+                <p class="text-xs font-medium text-cyan-400 font-mono mt-0.5">Life Milestones vs Rigid Calendar Timestamps</p>
+              </div>
+
+              <!-- Core Insight -->
+              <div class="space-y-1.5 text-xs text-slate-300 leading-relaxed">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block font-mono">Core Insight</span>
+                <p>
+                  Users know an event happened around a specific life event (like "college graduation", "first apartment move", or "COVID lockdown summer") but lack exact year metadata, causing standard chronological timeline scrolls to fail and causing high friction abandonment.
+                </p>
+              </div>
+
+              <!-- Data Proof Badge Box -->
+              <div class="p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30">
+                <div class="flex items-center gap-2 mb-1">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-cyan-400"></i>
+                  <span class="text-[11px] font-bold uppercase tracking-wider text-cyan-200 font-mono">Data Proof</span>
+                </div>
+                <p class="text-xs text-cyan-300/90 font-medium">
+                  <strong>65%</strong> of gap drivers were exact date/year memory lapses, leading directly to users endlessly scrubbing through unrelated years.
+                </p>
+              </div>
+            </div>
+
+            <!-- Raw Quote Box -->
+            <div class="pt-4 border-t border-white/[0.08] space-y-2">
+              <span class="text-[10px] font-mono uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <i data-lucide="quote" class="w-3 h-3 text-cyan-400"></i>
+                Raw User Quote
+              </span>
+              <blockquote class="text-xs italic text-slate-300 bg-black/40 p-3 rounded-lg border border-cyan-500/20 leading-relaxed">
+                &ldquo;Scrolling back 5 years is a nightmare. I know the photo was taken in summer 2018 or 2019 near a lake, why can't I just search that?&rdquo;
+              </blockquote>
+              <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                <span>Source: Play Store Review</span>
+                <span class="text-cyan-400">Rating: 1 Star</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3 - Utilitarian Document Retrieval -->
+          <div class="glass-card-glow p-6 rounded-2xl flex flex-col justify-between space-y-5">
+            <div class="space-y-4">
+              <!-- Header & Tag -->
+              <div class="flex items-center justify-between">
+                <span class="px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider bg-violet-500/20 text-violet-300 border border-violet-500/40">
+                  Archetype 03
+                </span>
+                <div class="flex items-center gap-1 text-violet-400 text-xs font-mono">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                  <span>Urgent Utility</span>
+                </div>
+              </div>
+
+              <!-- Title -->
+              <div>
+                <h3 class="text-lg font-bold text-white tracking-tight leading-snug">Utilitarian Document Retrieval</h3>
+                <p class="text-xs font-medium text-violet-400 font-mono mt-0.5">Physical Appearance vs Embedded OCR Text</p>
+              </div>
+
+              <!-- Core Insight -->
+              <div class="space-y-1.5 text-xs text-slate-300 leading-relaxed">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block font-mono">Core Insight</span>
+                <p>
+                  Users search for the physical appearances of important documents ("blue header logo", "yellow carbon copy receipt", "vertical laminated card") rather than the arbitrary OCR text strings within them. When OCR fails on creases or low-light, the photo becomes permanently lost.
+                </p>
+              </div>
+
+              <!-- Data Proof Badge Box -->
+              <div class="p-3.5 rounded-xl bg-violet-950/40 border border-violet-500/30">
+                <div class="flex items-center gap-2 mb-1">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-violet-400"></i>
+                  <span class="text-[11px] font-bold uppercase tracking-wider text-violet-200 font-mono">Data Proof</span>
+                </div>
+                <p class="text-xs text-violet-300/90 font-medium">
+                  High frequency of Play Store &amp; Support complaints specifically regarding lost IDs, medical cards, and tax documents.
+                </p>
+              </div>
+            </div>
+
+            <!-- Raw Quote Box -->
+            <div class="pt-4 border-t border-white/[0.08] space-y-2">
+              <span class="text-[10px] font-mono uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <i data-lucide="quote" class="w-3 h-3 text-violet-400"></i>
+                Raw User Quote
+              </span>
+              <blockquote class="text-xs italic text-slate-300 bg-black/40 p-3 rounded-lg border border-violet-500/20 leading-relaxed">
+                &ldquo;Does anyone else remember taking a picture of their lease agreement but when you search &lsquo;lease&rsquo; it doesn't show up? I remember the top was bright green.&rdquo;
+              </blockquote>
+              <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                <span>Source: Google Support Community</span>
+                <span class="text-violet-400">Status: Unresolved</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Bottom Interactive Call to Action -->
+      <div class="p-5 rounded-2xl glass-panel border border-purple-500/30 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-500 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+            <i data-lucide="cpu" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white">Recommended Product Action Item</h4>
+            <p class="text-xs text-slate-400">Deploy Multimodal Vector Embeddings (CLIP ViT-L/14) with temporal fuzzy clustering in Q1 build.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button onclick="switchTab('copilot')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white shadow-md shadow-purple-500/20 transition flex items-center gap-2">
+            <span>Query PM Copilot on this Data</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 2: ACTUAL REVIEWS (FILTERABLE USER FEED)                      -->
+    <!-- ================================================================= -->
+    <div id="tab-reviews" class="tab-content space-y-6">
+      
+      <!-- Top Title and Filter Row -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/[0.08]">
+        <div>
+          <div class="flex items-center gap-2 text-xs text-purple-400 font-mono mb-1">
+            <span>UNFILTERED QUALITATIVE CORPUS</span>
+            <span>&bull;</span>
+            <span class="text-cyan-400">80 High-Intent Friction Reviews</span>
+          </div>
+          <h2 class="text-2xl font-bold text-white tracking-tight">Actual User Reviews &amp; Struggle Signals</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Click filters below to segment by data ingestion channel.</p>
+        </div>
+
+        <!-- Filter Toggle Buttons -->
+        <div class="flex flex-wrap items-center gap-2 p-1.5 bg-black/50 rounded-xl border border-white/[0.08]" id="review-filter-group">
+          <button onclick="filterReviews('all', this)" class="filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-purple-500 text-white shadow-sm transition-all duration-200">
+            All (80)
+          </button>
+          <button onclick="filterReviews('Play Store', this)" class="filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all duration-200 flex items-center gap-1.5">
+            <i data-lucide="play" class="w-3 h-3 text-emerald-400"></i>
+            Play Store (34)
+          </button>
+          <button onclick="filterReviews('Reddit', this)" class="filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all duration-200 flex items-center gap-1.5">
+            <i data-lucide="message-circle" class="w-3 h-3 text-orange-400"></i>
+            Reddit (28)
+          </button>
+          <button onclick="filterReviews('Photos Community', this)" class="filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all duration-200 flex items-center gap-1.5">
+            <i data-lucide="help-circle" class="w-3 h-3 text-blue-400"></i>
+            Photos Community (18)
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Search in Reviews -->
+      <div class="relative max-w-md">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-500"></i>
+        <input type="text" id="review-search-input" onkeyup="searchReviews()" placeholder="Search review text or tags (e.g. lease, neon, 2018)..." class="w-full bg-[#14141c] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 transition">
+      </div>
+
+      <!-- Masonry / Responsive Grid of Review Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="reviews-container">
+
+        <!-- Review Card 1 (Reddit) -->
+        <div class="review-card glass-panel p-5 rounded-2xl space-y-4 hover:border-purple-500/40 transition" data-source="Reddit" data-archetype="Vibe Search">
+          <div class="flex items-center justify-between">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-orange-500/15 text-orange-300 border border-orange-500/30 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span> Reddit (r/googlephotos)
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono">2 days ago</span>
+          </div>
+          <div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-purple-500/15 text-purple-300 border border-purple-500/20 font-semibold inline-block mb-2">
+              Looking for: Aesthetic Vibe
+            </span>
+            <p class="text-xs text-slate-200 italic leading-relaxed">
+              &ldquo;I just want to search for 'neon sign' and find the picture I took in Tokyo, but it only shows me screenshots of text with the word neon. Why doesn't it recognize the glowing aesthetic?&rdquo;
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-400 font-mono">
+            <span>Vector Match: 0.94</span>
+            <span class="text-red-400">Outcome: Zero Relevant</span>
+          </div>
+        </div>
+
+        <!-- Review Card 2 (Play Store) -->
+        <div class="review-card glass-panel p-5 rounded-2xl space-y-4 hover:border-cyan-500/40 transition" data-source="Play Store" data-archetype="Fuzzy Timeline">
+          <div class="flex items-center justify-between">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Play Store
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono">1 week ago</span>
+          </div>
+          <div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-500/20 font-semibold inline-block mb-2">
+              Looking for: Fuzzy Graduation Date
+            </span>
+            <p class="text-xs text-slate-200 italic leading-relaxed">
+              &ldquo;Scrolling back 5 years is a nightmare. I know the photo was taken in summer 2018 or 2019 near a lake during my buddy's graduation trip, why can't I just search that phrase? The date scroll is useless.&rdquo;
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-400 font-mono">
+            <span>Vector Match: 0.91</span>
+            <span class="text-red-400">Outcome: Abandoned</span>
+          </div>
+        </div>
+
+        <!-- Review Card 3 (Community) -->
+        <div class="review-card glass-panel p-5 rounded-2xl space-y-4 hover:border-violet-500/40 transition" data-source="Photos Community" data-archetype="Document Appearance">
+          <div class="flex items-center justify-between">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-blue-500/15 text-blue-300 border border-blue-500/30 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> Photos Community
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono">3 days ago</span>
+          </div>
+          <div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-violet-500/15 text-violet-300 border border-violet-500/20 font-semibold inline-block mb-2">
+              Looking for: Old IDs &amp; Lease
+            </span>
+            <p class="text-xs text-slate-200 italic leading-relaxed">
+              &ldquo;Does anyone else remember taking a picture of their lease agreement but when you search 'lease' it doesn't show up? I remember the top was bright green. Is there no way to filter by visual header color?&rdquo;
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-400 font-mono">
+            <span>Vector Match: 0.88</span>
+            <span class="text-amber-400">Outcome: OCR Miss</span>
+          </div>
+        </div>
+
+        <!-- Review Card 4 (Play Store) -->
+        <div class="review-card glass-panel p-5 rounded-2xl space-y-4 hover:border-purple-500/40 transition" data-source="Play Store" data-archetype="Vibe Search">
+          <div class="flex items-center justify-between">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Play Store
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono">Yesterday</span>
+          </div>
+          <div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-purple-500/15 text-purple-300 border border-purple-500/20 font-semibold inline-block mb-2">
+              Looking for: Dark Red Room Atmosphere
+            </span>
+            <p class="text-xs text-slate-200 italic leading-relaxed">
+              &ldquo;I stayed at a boutique hotel with this insanely memorable dark red moody lounge. Searching 'red' brings up red cars and shirts. Searching 'bar' brings up 500 screenshots. Give us vibe search!&rdquo;
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-400 font-mono">
+            <span>Vector Match: 0.93</span>
+            <span class="text-red-400">Outcome: False Positive</span>
+          </div>
+        </div>
+
+        <!-- Review Card 5 (Reddit) -->
+        <div class="review-card glass-panel p-5 rounded-2xl space-y-4 hover:border-cyan-500/40 transition" data-source="Reddit" data-archetype="Fuzzy Timeline">
+          <div class="flex items-center justify-between">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-orange-500/15 text-orange-300 border border-orange-500/30 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span> Reddit (r/googlephotos)
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono">4 days ago</span>
+          </div>
+          <div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-500/20 font-semibold inline-block mb-2">
+              Looking for: First Job / Moving Day
+            </span>
+            <p class="text-xs text-slate-200 italic leading-relaxed">
+              &ldquo;I don't know the exact calendar date I moved into my Chicago flat, but it was raining and had cardboard boxes everywhere. Why can't I search 'rainy moving day flat'? I don't remember the year.&rdquo;
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-400 font-mono">
+            <span>Vector Match: 0.96</span>
+            <span class="text-red-400">Outcome: Zero Results</span>
+          </div>
+        </div>
+
+        <!-- Review Card 6 (Photos Community) -->
+        <div class="review-card glass-panel p-5 rounded-2xl space-y-4 hover:border-violet-500/40 transition" data-source="Photos Community" data-archetype="Document Appearance">
+          <div class="flex items-center justify-between">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-blue-500/15 text-blue-300 border border-blue-500/30 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> Photos Community
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono">5 days ago</span>
+          </div>
+          <div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-violet-500/15 text-violet-300 border border-violet-500/20 font-semibold inline-block mb-2">
+              Looking for: Vaccination / Health Card
+            </span>
+            <p class="text-xs text-slate-200 italic leading-relaxed">
+              &ldquo;My vaccine card has a small blue CDC seal on the corner. When I type 'vaccine' it pulls up text messages. I need it to recognize the physical card template format!&rdquo;
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-400 font-mono">
+            <span>Vector Match: 0.89</span>
+            <span class="text-amber-400">Outcome: Low Precision</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 3: LIVE SCRAPER ENGINE (COMMAND CENTER TABLE)                -->
+    <!-- ================================================================= -->
+    <div id="tab-engine" class="tab-content space-y-6">
+      
+      <!-- Top Status Banner -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/[0.08]">
+        <div>
+          <div class="flex items-center gap-2 text-xs text-emerald-400 font-mono mb-1">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>DATA PIPELINE ACTIVE &bull; DISTRIBUTED WORKERS: 3/3 ONLINE</span>
+          </div>
+          <h2 class="text-2xl font-bold text-white tracking-tight">Live Ingestion &amp; Vectorization Engine</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Real-time scraping daemon parsing unstructured complaint corpora into ChromaDB embeddings.</p>
+        </div>
+
+        <!-- Prominent Next Fetch Card -->
+        <div class="glass-panel px-5 py-3 rounded-xl border border-cyan-500/30 flex items-center gap-4">
+          <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+            <i data-lucide="timer" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">Next Automated Data Fetch</span>
+            <div class="text-lg font-extrabold text-cyan-300 font-mono flex items-center gap-2">
+              <span>02:00 AM UTC</span>
+              <span class="text-xs px-2 py-0.5 font-sans rounded bg-cyan-500/20 text-cyan-200">Cron: In 4h 12m</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scraper Metrics Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass-panel p-4 rounded-xl border border-white/5">
+          <span class="text-[11px] font-mono text-slate-400 uppercase">Total Vectors in Store</span>
+          <p class="text-2xl font-bold font-mono text-white mt-1">80 Vectors</p>
+          <span class="text-[10px] text-emerald-400 font-mono flex items-center gap-1 mt-1">
+            <i data-lucide="arrow-up-right" class="w-3 h-3"></i> +14 indexed this week
+          </span>
+        </div>
+
+        <div class="glass-panel p-4 rounded-xl border border-white/5">
+          <span class="text-[11px] font-mono text-slate-400 uppercase">Embedding Dimension</span>
+          <p class="text-2xl font-bold font-mono text-purple-300 mt-1">1,024 Dim</p>
+          <span class="text-[10px] text-slate-400 font-mono mt-1 block">Cosine Similarity Metric</span>
+        </div>
+
+        <div class="glass-panel p-4 rounded-xl border border-white/5">
+          <span class="text-[11px] font-mono text-slate-400 uppercase">Average Ingestion Latency</span>
+          <p class="text-2xl font-bold font-mono text-cyan-300 mt-1">1.42s</p>
+          <span class="text-[10px] text-slate-400 font-mono mt-1 block">Per 50 Reviews Parsed</span>
+        </div>
+
+        <div class="glass-panel p-4 rounded-xl border border-white/5">
+          <span class="text-[11px] font-mono text-slate-400 uppercase">Spam / Crash Discard Rate</span>
+          <p class="text-2xl font-bold font-mono text-pink-300 mt-1">76.9%</p>
+          <span class="text-[10px] text-slate-400 font-mono mt-1 block">267 Generic Reviews Filtered</span>
+        </div>
+      </div>
+
+      <!-- Command-Center Ingestion Feeds Table -->
+      <div class="glass-panel rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+        <div class="p-5 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="terminal" class="w-4 h-4 text-cyan-400"></i>
+            <h3 class="text-sm font-bold text-white font-mono tracking-tight">Active Scraper Pipeline Registry</h3>
+          </div>
+          <span class="text-xs font-mono text-slate-400">Protocol: HTTPS / Webhooks</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-white/[0.08] text-[11px] font-mono text-slate-400 uppercase tracking-wider bg-white/[0.01]">
+                <th class="py-3.5 px-6">Data Source</th>
+                <th class="py-3.5 px-6">Status</th>
+                <th class="py-3.5 px-6">Total Reviews Fetched</th>
+                <th class="py-3.5 px-6">Search Struggles Isolated</th>
+                <th class="py-3.5 px-6">Target Endpoint</th>
+                <th class="py-3.5 px-6 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/[0.06] text-xs">
+              
+              <!-- Row 1: Google Play Store -->
+              <tr class="hover:bg-white/[0.03] transition">
+                <td class="py-4 px-6 font-medium text-white flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <span class="font-semibold block text-slate-100">Google Play Store</span>
+                    <span class="text-[10px] text-slate-500 font-mono">com.google.android.apps.photos</span>
+                  </div>
+                </td>
+                <td class="py-4 px-6">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Active
+                  </span>
+                </td>
+                <td class="py-4 px-6 font-mono font-medium text-slate-200">
+                  182 Reviews
+                </td>
+                <td class="py-4 px-6 font-mono text-cyan-300 font-semibold">
+                  34 Signals (18.6%)
+                </td>
+                <td class="py-4 px-6 font-mono text-[11px] text-slate-400">
+                  api.googleplay.internal/v3/reviews
+                </td>
+                <td class="py-4 px-6 text-right">
+                  <button onclick="triggerScraperRefresh('Play Store', this)" class="px-2.5 py-1 text-[11px] font-mono rounded bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 transition">
+                    Test Probe
+                  </button>
+                </td>
+              </tr>
+
+              <!-- Row 2: Reddit (r/googlephotos) -->
+              <tr class="hover:bg-white/[0.03] transition">
+                <td class="py-4 px-6 font-medium text-white flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
+                    <i data-lucide="message-circle" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <span class="font-semibold block text-slate-100">Reddit (r/googlephotos)</span>
+                    <span class="text-[10px] text-slate-500 font-mono">Subreddit Pushshift &amp; OAuth</span>
+                  </div>
+                </td>
+                <td class="py-4 px-6">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Active
+                  </span>
+                </td>
+                <td class="py-4 px-6 font-mono font-medium text-slate-200">
+                  98 Submissions
+                </td>
+                <td class="py-4 px-6 font-mono text-purple-300 font-semibold">
+                  28 Signals (28.5%)
+                </td>
+                <td class="py-4 px-6 font-mono text-[11px] text-slate-400">
+                  oauth.reddit.com/r/googlephotos/new
+                </td>
+                <td class="py-4 px-6 text-right">
+                  <button onclick="triggerScraperRefresh('Reddit', this)" class="px-2.5 py-1 text-[11px] font-mono rounded bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 transition">
+                    Test Probe
+                  </button>
+                </td>
+              </tr>
+
+              <!-- Row 3: Support Community -->
+              <tr class="hover:bg-white/[0.03] transition">
+                <td class="py-4 px-6 font-medium text-white flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                    <i data-lucide="help-circle" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <span class="font-semibold block text-slate-100">Support Community</span>
+                    <span class="text-[10px] text-slate-500 font-mono">support.google.com/photos/community</span>
+                  </div>
+                </td>
+                <td class="py-4 px-6">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Active
+                  </span>
+                </td>
+                <td class="py-4 px-6 font-mono font-medium text-slate-200">
+                  67 Threads
+                </td>
+                <td class="py-4 px-6 font-mono text-violet-300 font-semibold">
+                  18 Signals (26.8%)
+                </td>
+                <td class="py-4 px-6 font-mono text-[11px] text-slate-400">
+                  support.google.com/photos/threads/search
+                </td>
+                <td class="py-4 px-6 text-right">
+                  <button onclick="triggerScraperRefresh('Community', this)" class="px-2.5 py-1 text-[11px] font-mono rounded bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 transition">
+                    Test Probe
+                  </button>
+                </td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+
+        <div class="p-4 bg-white/[0.01] border-t border-white/[0.06] flex items-center justify-between text-xs font-mono text-slate-400">
+          <span>Aggregated Vectors: <strong>80 / 80 ChromaDB Documents</strong></span>
+          <span class="text-emerald-400">Worker Status: All Daemon Processes Healthy</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 4: PM COPILOT (RAG INTERFACE) & HOW IT WORKS                 -->
+    <!-- ================================================================= -->
+    <div id="tab-copilot" class="tab-content space-y-8">
+      
+      <!-- Sub-view 1: How It Works Visual Step-by-Step (As explicitly outlined) -->
+      <section class="space-y-4">
+        <div>
+          <div class="flex items-center gap-2 text-xs text-cyan-400 font-mono mb-1">
+            <span>ARCHITECTURE PRIMER</span>
+            <span>&bull;</span>
+            <span class="text-slate-400">End-to-End Pipeline</span>
+          </div>
+          <h2 class="text-xl font-bold text-white tracking-tight">How It Works: Autonomous Signal Extractor</h2>
+        </div>
+
+        <!-- 3 Step Explainer Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          
+          <!-- Step 1: Scraping -->
+          <div class="glass-panel p-5 rounded-2xl relative overflow-hidden border-t-2 border-t-cyan-500">
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-3 font-mono font-bold">
+              01
+            </div>
+            <h3 class="text-base font-bold text-white mb-1.5 flex items-center gap-2">
+              <span>Scraping</span>
+              <i data-lucide="radio" class="w-3.5 h-3.5 text-cyan-400"></i>
+            </h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              The system automatically reads raw feedback from Reddit, Google Play Store, and Google Support Community forums every 24 hours.
+            </p>
+          </div>
+
+          <!-- Step 2: AI Filtering -->
+          <div class="glass-panel p-5 rounded-2xl relative overflow-hidden border-t-2 border-t-purple-500">
+            <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-3 font-mono font-bold">
+              02
+            </div>
+            <h3 class="text-base font-bold text-white mb-1.5 flex items-center gap-2">
+              <span>AI Filtering</span>
+              <i data-lucide="filter" class="w-3.5 h-3.5 text-purple-400"></i>
+            </h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              An LLM classifier reads each feedback item and discards generic noise (e.g., app crashes, billing inquiries), keeping only verified struggles about searching and finding photos.
+            </p>
+          </div>
+
+          <!-- Step 3: Database & Synthesis -->
+          <div class="glass-panel p-5 rounded-2xl relative overflow-hidden border-t-2 border-t-violet-500">
+            <div class="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-center text-violet-400 mb-3 font-mono font-bold">
+              03
+            </div>
+            <h3 class="text-base font-bold text-white mb-1.5 flex items-center gap-2">
+              <span>Database &amp; Fixes</span>
+              <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-violet-400"></i>
+            </h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              The struggles are indexed into a ChromaDB vector store where Product Managers can query semantic clusters, quantify user friction, and prioritize fixes.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Sub-view 2: ChatGPT-Style PM Copilot (RAG Container querying ChromaDB) -->
+      <section class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400"></span>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 font-mono">
+              PM Copilot (RAG Interface &bull; ChromaDB Vector Query)
+            </h2>
+          </div>
+          <span class="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded border border-cyan-500/20">
+            Model: Gemini 1.5 Pro + Dense Embeddings
+          </span>
+        </div>
+
+        <!-- Large Glassmorphic Chat Container -->
+        <div class="glass-panel rounded-2xl border border-white/10 flex flex-col h-[520px] overflow-hidden shadow-2xl relative">
+          
+          <!-- Chat Header -->
+          <div class="px-6 py-3.5 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">
+                <i data-lucide="sparkles" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <span class="text-xs font-bold text-white block">Photos Search PM Intelligence Agent</span>
+                <span class="text-[10px] text-slate-400 font-mono">Retrieval-Augmented Generation on 80 Ingested Review Vectors</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span> ChromaDB Vector Sync: Live
+              </span>
+            </div>
+          </div>
+
+          <!-- Chat Messages Area (Includes the required mock conversation on fuzzy timelines) -->
+          <div id="chat-messages" class="flex-1 p-6 overflow-y-auto space-y-5">
+            
+            <!-- User Message 1 (PM Query) -->
+            <div class="flex items-start justify-end gap-3">
+              <div class="max-w-xl bg-purple-600/30 border border-purple-500/40 text-purple-100 p-4 rounded-2xl rounded-tr-sm text-xs leading-relaxed shadow-lg">
+                <div class="flex items-center gap-2 mb-1.5 text-[10px] font-mono text-purple-300">
+                  <i data-lucide="user" class="w-3 h-3"></i>
+                  <span>Product Manager (Photos Search Core)</span>
+                </div>
+                <p>
+                  "Why are users failing on fuzzy timeline searches? What analytical patterns exist in our ChromaDB vector database regarding graduation and vacation milestones?"
+                </p>
+              </div>
+              <div class="w-7 h-7 rounded-full bg-slate-800 border border-purple-500/30 flex items-center justify-center text-[10px] font-bold text-purple-300 shrink-0">
+                PM
+              </div>
+            </div>
+
+            <!-- Assistant Response 1 (RAG Analytical Answer) -->
+            <div class="flex items-start gap-3">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-500 to-cyan-500 flex items-center justify-center text-white shrink-0 shadow-md">
+                <i data-lucide="bot" class="w-3.5 h-3.5"></i>
+              </div>
+              <div class="max-w-2xl glass-panel p-5 rounded-2xl rounded-tl-sm text-xs leading-relaxed space-y-3 border-cyan-500/30 shadow-xl">
+                <div class="flex items-center justify-between text-[10px] font-mono text-cyan-400">
+                  <span class="flex items-center gap-1.5">
+                    <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+                    AI Copilot &bull; RAG Pipeline (Synthesized 28 Relevant Vectors)
+                  </span>
+                  <span class="text-slate-500">Latency: 420ms</span>
+                </div>
+
+                <p class="text-slate-200">
+                  Based on semantic indexing of <strong>80 friction vectors</strong> across Play Store and Reddit, fuzzy timeline searches exhibit a <strong>65% abandonment rate</strong> due to two architectural gaps:
+                </p>
+
+                <!-- Key Analytical Points -->
+                <div class="space-y-2 bg-black/40 p-3.5 rounded-xl border border-white/5 font-sans">
+                  <div class="flex items-start gap-2">
+                    <span class="text-cyan-400 font-mono font-bold">1.</span>
+                    <p class="text-slate-300">
+                      <strong>Life Event vs. Chronological Year:</strong> 72% of timeline queries reference episodic milestones (<em>"summer before college"</em>, <em>"first week at startup"</em>) rather than ISO calendar timestamps. Google Photos currently requires sequential year-by-year manual scrubbing.
+                    </p>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-purple-400 font-mono font-bold">2.</span>
+                    <p class="text-slate-300">
+                      <strong>Multi-Year Uncertainty:</strong> Users frequently cite an uncertainty window of &plusmn;18 months. When queries specify <em>"summer 2018 or 2019"</em>, boolean syntax collapses and yields 0 photos.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Grounded Quote Proof -->
+                <div class="p-3 rounded-lg bg-cyan-950/30 border border-cyan-500/20 text-[11px] text-cyan-200">
+                  <span class="font-mono uppercase font-bold text-cyan-400 block mb-0.5">Top-Ranked Grounding Citation (Score: 0.94)</span>
+                  <em>&ldquo;Scrolling back 5 years is a nightmare. I know the photo was taken in summer 2018 or 2019 near a lake, why can't I just search that?&rdquo;</em> &mdash; Play Store
+                </div>
+
+                <div class="flex items-center gap-2 pt-1">
+                  <span class="text-[10px] font-mono text-slate-400">Recommended Metric to Track:</span>
+                  <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">Scroll Velocity Pre-Abandonment</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic New Message Destination -->
+            <div id="dynamic-chat-space"></div>
+
+          </div>
+
+          <!-- Chat Input Bar -->
+          <div class="p-4 bg-black/50 border-t border-white/[0.08]">
+            <form onsubmit="sendCopilotMessage(event)" class="flex items-center gap-3">
+              <div class="relative flex-1">
+                <input type="text" id="copilot-input" placeholder="Ask Copilot: 'What do users say about searching for receipts and IDs?'..." class="w-full bg-[#14141c] border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition shadow-inner">
+                <span class="absolute right-3 top-3 text-[10px] font-mono text-slate-500 border border-white/10 px-1.5 py-0.5 rounded">Enter &crarr;</span>
+              </div>
+              <button type="submit" class="px-5 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 active:scale-95 text-white font-semibold text-xs transition flex items-center gap-2 shadow-lg shadow-purple-500/20">
+                <span>Query</span>
+                <i data-lucide="send" class="w-3.5 h-3.5"></i>
+              </button>
+            </form>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- Interactive Client-side Script -->
+  <script>
+    // Tab switching logic
+    function switchTab(tabId) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      
+      // Reset button styles
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-gradient-to-r', 'from-purple-600/30', 'to-blue-600/30', 'text-white', 'border', 'border-purple-500/40');
+        btn.classList.add('text-slate-400');
+      });
+
+      // Show target tab
+      const target = document.getElementById('tab-' + tabId);
+      if (target) target.classList.add('active');
+
+      // Style active button
+      const activeBtn = document.getElementById('nav-' + tabId);
+      if (activeBtn) {
+        activeBtn.classList.remove('text-slate-400');
+        activeBtn.classList.add('bg-gradient-to-r', 'from-purple-600/30', 'to-blue-600/30', 'text-white', 'border', 'border-purple-500/40');
+      }
+
+      // Re-initialize Lucide icons in case new elements rendered
+      lucide.createIcons();
+    }
+
+    // Filter Reviews in Tab 2
+    function filterReviews(source, btn) {
+      // Toggle button active visual states
+      const buttons = document.querySelectorAll('#review-filter-group .filter-btn');
+      buttons.forEach(b => {
+        b.className = 'filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all duration-200';
+      });
+      btn.className = 'filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-purple-500 text-white shadow-sm transition-all duration-200';
+
+      // Filter cards
+      const cards = document.querySelectorAll('#reviews-container .review-card');
+      cards.forEach(card => {
+        const cardSource = card.getAttribute('data-source');
+        if (source === 'all' || cardSource.toLowerCase() === source.toLowerCase()) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    // Real-time search in reviews
+    function searchReviews() {
+      const q = document.getElementById('review-search-input').value.toLowerCase();
+      const cards = document.querySelectorAll('#reviews-container .review-card');
+      cards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        if (text.includes(q)) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    // Chat message sending mock for PM Copilot
+    function sendCopilotMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('copilot-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const dynamicSpace = document.getElementById('dynamic-chat-space');
+
+      // Append user bubble
+      const userBubble = document.createElement('div');
+      userBubble.className = "flex items-start justify-end gap-3 mt-4 animate-fade-in";
+      userBubble.innerHTML = `
+        <div class="max-w-xl bg-purple-600/30 border border-purple-500/40 text-purple-100 p-4 rounded-2xl rounded-tr-sm text-xs leading-relaxed">
+          <div class="flex items-center gap-2 mb-1.5 text-[10px] font-mono text-purple-300">
+            <span>Product Manager</span>
+          </div>
+          <p>${escapeHtml(text)}</p>
+        </div>
+        <div class="w-7 h-7 rounded-full bg-slate-800 border border-purple-500/30 flex items-center justify-center text-[10px] font-bold text-purple-300 shrink-0">
+          PM
+        </div>
+      `;
+      dynamicSpace.appendChild(userBubble);
+      input.value = '';
+
+      // Scroll to bottom
+      const container = document.getElementById('chat-messages');
+      container.scrollTop = container.scrollHeight;
+
+      // Simulate AI Copilot RAG response
+      setTimeout(() => {
+        const aiBubble = document.createElement('div');
+        aiBubble.className = "flex items-start gap-3 mt-4 animate-fade-in";
+        aiBubble.innerHTML = `
+          <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-500 to-cyan-500 flex items-center justify-center text-white shrink-0 shadow-md">
+            <i data-lucide="bot" class="w-3.5 h-3.5"></i>
+          </div>
+          <div class="max-w-2xl glass-panel p-5 rounded-2xl rounded-tl-sm text-xs leading-relaxed space-y-3 border-cyan-500/30 shadow-xl">
+            <div class="flex items-center justify-between text-[10px] font-mono text-cyan-400">
+              <span>AI Copilot &bull; ChromaDB Retrieval Verified</span>
+              <span class="text-slate-500">Latency: 280ms</span>
+            </div>
+            <p class="text-slate-200">
+              Query synthesized against <strong>80 verified struggle vectors</strong>: Users attempting to retrieve documents consistently rely on physical visual tokens (colored headers, stamps, card layout ratios) rather than OCR text.
+            </p>
+            <div class="p-3 rounded-lg bg-purple-950/30 border border-purple-500/20 text-[11px] text-purple-200">
+              <span class="font-mono uppercase font-bold text-purple-400 block mb-0.5">Recommended Vector Feature:</span>
+              Pair layout segmentation embeddings (DocLayout-YOLO) with existing text index to allow searches like <em>"card with blue top banner"</em>.
+            </div>
+          </div>
+        `;
+        dynamicSpace.appendChild(aiBubble);
+        lucide.createIcons();
+        container.scrollTop = container.scrollHeight;
+      }, 500);
+    }
+
+    function escapeHtml(string) {
+      const entityMap = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      };
+      return String(string).replace(/[&<>"']/g, function (s) {
+        return entityMap[s];
+      });
+    }
+
+    // Trigger test probe or sync button notifications
+    function triggerDataSync(btn) {
+      const orig = btn.innerHTML;
+      btn.innerHTML = `<span class="animate-spin inline-block mr-1">&#9696;</span> Ingesting...`;
+      setTimeout(() => {
+        btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400 inline"></i> Synced (80 Vectors)`;
+        lucide.createIcons();
+        setTimeout(() => {
+          btn.innerHTML = orig;
+          lucide.createIcons();
+        }, 2000);
+      }, 700);
+    }
+
+    function triggerScraperRefresh(source, btn) {
+      const orig = btn.innerText;
+      btn.innerText = 'Probing...';
+      setTimeout(() => {
+        btn.innerText = '200 OK (Live)';
+        btn.classList.add('text-emerald-400');
+        setTimeout(() => {
+          btn.innerText = orig;
+          btn.classList.remove('text-emerald-400');
+        }, 1800);
+      }, 600);
+    }
+
+    // Initialize Lucide Icons on load
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+    lucide.createIcons();
+  </script>
+</body>
+</html>
