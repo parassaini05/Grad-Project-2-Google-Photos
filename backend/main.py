@@ -103,7 +103,7 @@ def run_rag_query(request: QueryRequest):
                     "content": augmented_prompt,
                 }
             ],
-            model="llama-3.1-8b-instant",
+            model="qwen/qwen3.8-27b",
         )
         synthesis = response.choices[0].message.content
         return QueryResponse(synthesis=synthesis, sources=context_docs)
