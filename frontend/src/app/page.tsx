@@ -419,10 +419,7 @@ export default function DiscoveryEngine() {
                       <div>
                         <div style={{fontSize:10,fontFamily:"monospace",color:"#1e293b",fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>DATA PROOF</div>
                         <p style={{fontSize:12,color:"#0f172a",lineHeight:1.7,margin:0}}>{arc.proof}</p>
-                        <div style={{marginTop:12,padding:"10px 14px",borderRadius:10,background:`${arc.color}15`,border:`1px solid ${arc.color}30`}}>
-                          <div style={{fontSize:10,fontFamily:"monospace",color:arc.color,fontWeight:700,marginBottom:4}}>RECOMMENDATION</div>
-                          <p style={{fontSize:12,color:"#1e293b",lineHeight:1.6,margin:0}}>{arc.recommendation}</p>
-                        </div>
+
                       </div>
                     </div>
                     <div>
