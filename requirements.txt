@@ -6,3 +6,4 @@ groq
 python-dotenv
 schedule
 apify-client
+google-genai
