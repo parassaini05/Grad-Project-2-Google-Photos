@@ -121,7 +121,7 @@ export default function DiscoveryEngine() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0f172a", color: "#334155", fontFamily: "'Roboto', system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#f8fafc", color: "#334155", fontFamily: "'Roboto', system-ui, sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
         @keyframes spin { to { transform: rotate(360deg); } }
