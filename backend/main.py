@@ -92,7 +92,7 @@ def run_rag_query(request: QueryRequest):
     Based ONLY on the context above, answer this question analytically:
     {prompt}
 
-    Structure your answer with: key patterns observed, specific user quotes as evidence, and a brief PM recommendation.
+    Structure your answer with: key patterns observed, and specific user quotes as evidence. Do not provide product recommendations at this stage.
     """
 
     try:
