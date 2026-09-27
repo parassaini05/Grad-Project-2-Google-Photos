@@ -37,6 +37,7 @@ This document breaks down the system architecture into an actionable, phase-wise
 *   **Tasks:**
     *   [x] Set up **SQLite / ChromaDB** to persistently store the metadata and raw quotes.
     *   [x] Set up **ChromaDB** for local vector database management.
+    *   [x] Implement **Semantic Profile Chunking**: Instead of naive text splitting, combine extracted JSON fields (`struggle_type`, `search_queries`, `remembered_info`, `forgotten_info`) with raw text into dense, context-rich chunks for higher retrieval accuracy.
     *   [x] Generate text embeddings (using the local BGE embedding model) for the failure modes.
     *   [x] Load embeddings into ChromaDB.
 *   **Output:** A fully populated Local Vector + Metadata Database (`./chroma_db`).

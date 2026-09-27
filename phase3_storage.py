@@ -52,12 +52,13 @@ def load_and_embed_data(collection):
                 continue
                 
             # --- RAG CHUNKING STRATEGY ---
-            # Since user reviews/posts are short, we do NOT use token-splitting (like RecursiveCharacterTextSplitter).
-            # Instead, we use Document-Level Metadata Chunking.
-            # We combine the most semantically dense extracted fields + raw text into a single cohesive chunk.
+            # We use Semantic Profile Chunking rather than naive token splitting.
+            # We embed the highly-dense extracted structured data (what they remember, forgot, and how they search)
+            # alongside the raw feedback. This creates a cohesive context block for the RAG retriever.
             
             combined_text = (
                 f"Struggle Type: {item.get('struggle_type', '')}\n"
+                f"Search Attempts: {item.get('search_queries', 'None specified')}\n"
                 f"User Remembers: {item.get('remembered_info', '')}\n"
                 f"User Forgot: {item.get('forgotten_info', '')}\n"
                 f"Raw Feedback: {item.get('text', '')}"
