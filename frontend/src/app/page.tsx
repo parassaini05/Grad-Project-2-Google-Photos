@@ -304,7 +304,7 @@ export default function DiscoveryEngine() {
 
             {/* Summary bar */}
             <div style={{padding:"14px 20px",borderRadius:12,background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.25)",display:"flex",gap:24,flexWrap:"wrap",alignItems:"center"}}>
-              {[["347","Total Sources Scraped"],["112","High-Intent Friction Signals"],["3","Major Failure Archetypes"],["98.4%","Confidence (Gemini Verified)"]].map(([v,l]) => (
+              {[["347","Total Sources Scraped"],["112","High-Intent Friction Signals"],["3","Major Failure Archetypes"],["98.4%","Confidence (Groq Verified)"]].map(([v,l]) => (
                 <div key={l} style={{display:"flex",alignItems:"center",gap:8}}>
                   <span style={{fontSize:18,fontWeight:800,fontFamily:"monospace",color:"#7c3aed"}}>{v}</span>
                   <span style={{fontSize:11,color:"#0f172a"}}>{l}</span>
