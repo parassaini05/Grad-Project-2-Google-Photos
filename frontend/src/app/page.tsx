@@ -73,7 +73,7 @@ export default function DiscoveryEngine() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/stats")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/stats`)
       .then(r => r.json())
       .then(d => { if (d.total_vectors) setVectorCount(d.total_vectors); })
       .catch(() => {});
@@ -95,7 +95,7 @@ export default function DiscoveryEngine() {
     setChatHistory(prev => [...prev, { role: "user", content: query }]);
     setIsTyping(true);
     try {
-      const res = await fetch("http://localhost:8000/api/rag", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/rag`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: query }),
@@ -109,7 +109,7 @@ export default function DiscoveryEngine() {
     } catch {
       setChatHistory(prev => [...prev, {
         role: "assistant",
-        content: "⚠️ Could not connect to the FastAPI backend (localhost:8000). Make sure it is running.",
+        content: `⚠️ Could not connect to the backend (${process.env.NEXT_PUBLIC_API_URL || "localhost:8000"}). Make sure it is running.`,
       }]);
     } finally {
       setIsTyping(false);
