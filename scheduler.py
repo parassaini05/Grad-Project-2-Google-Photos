@@ -64,7 +64,7 @@ if __name__ == "__main__":
     print("Press Ctrl+C to exit.")
     
     # Optional: Run immediately on startup for testing
-    # run_daily_pipeline()
+    run_daily_pipeline()
     
     while True:
         schedule.run_pending()
