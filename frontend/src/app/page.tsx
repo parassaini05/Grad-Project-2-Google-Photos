@@ -121,32 +121,32 @@ export default function DiscoveryEngine() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#09090f", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#0f172a", color: "#334155", fontFamily: "'Roboto', system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @keyframes ping { 75%,100%{transform:scale(2);opacity:0} }
         @keyframes fadeInUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         .fade-up { animation: fadeInUp 0.4s ease forwards; }
-        .glass { background: rgba(15,15,25,0.75); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.07); }
-        .glass-card { background: rgba(12,12,20,0.85); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s; }
+        .glass { background: rgba(255,255,255,0.75); backdrop-filter: blur(18px); border: 1px solid rgba(0,0,0,0.07); }
+        .glass-card { background: rgba(255,255,255,0.85); border: 1px solid rgba(0,0,0,0.08); border-radius: 16px; transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s; }
         .glass-card:hover { border-color: rgba(139,92,246,0.4); transform: translateY(-2px); box-shadow: 0 12px 32px rgba(139,92,246,0.15); }
         .tab-btn { padding: 8px 18px; border-radius: 10px; border: 1px solid transparent; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 7px; }
         .tab-btn.active { background: linear-gradient(135deg, rgba(139,92,246,0.25), rgba(59,130,246,0.2)); border-color: rgba(139,92,246,0.45); color: #fff; }
         .tab-btn:not(.active) { background: transparent; color: #64748b; }
-        .tab-btn:not(.active):hover { background: rgba(255,255,255,0.04); color: #94a3b8; }
-        .filter-btn { padding: 6px 16px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid rgba(255,255,255,0.08); transition: all 0.2s; }
+        .tab-btn:not(.active):hover { background: rgba(0,0,0,0.04); color: #64748b; }
+        .filter-btn { padding: 6px 16px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid rgba(0,0,0,0.08); transition: all 0.2s; }
         .filter-btn.active { background: rgba(139,92,246,0.8); border-color: rgba(139,92,246,1); color: #fff; }
         .filter-btn:not(.active) { background: transparent; color: #64748b; }
-        .filter-btn:not(.active):hover { background: rgba(255,255,255,0.05); color: #94a3b8; }
+        .filter-btn:not(.active):hover { background: rgba(0,0,0,0.05); color: #64748b; }
         .bar-fill { height: 100%; border-radius: 4px; transition: width 1.2s cubic-bezier(0.16,1,0.3,1); }
-        .bar-track { height: 10px; border-radius: 6px; background: rgba(255,255,255,0.05); padding: 1px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden; }
+        .bar-track { height: 10px; border-radius: 6px; background: rgba(0,0,0,0.05); padding: 1px; border: 1px solid rgba(0,0,0,0.05); overflow: hidden; }
         .pulse-dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 2s infinite; }
         .ping-dot { position: relative; display: inline-flex; }
         .ping-dot::before { content:''; position: absolute; width: 100%; height: 100%; border-radius: 50%; background: #10b981; opacity: 0.7; animation: ping 1.5s cubic-bezier(0,0,.2,1) infinite; }
         .chat-bubble-user { background: rgba(139,92,246,0.2); border: 1px solid rgba(139,92,246,0.35); border-radius: 14px 14px 2px 14px; }
-        .chat-bubble-ai { background: rgba(12,12,22,0.9); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px 14px 14px 2px; }
+        .chat-bubble-ai { background: rgba(255,255,255,1); border: 1px solid rgba(0,0,0,0.08); border-radius: 14px 14px 14px 2px; }
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
@@ -157,12 +157,12 @@ export default function DiscoveryEngine() {
       <div style={{position:"fixed",top:"20%",right:-100,width:500,height:500,background:"radial-gradient(circle,rgba(56,189,248,0.08),transparent 70%)",pointerEvents:"none",zIndex:0}}/>
 
       {/* Header */}
-      <header className="glass" style={{position:"sticky",top:0,zIndex:50,borderBottom:"1px solid rgba(255,255,255,0.07)",padding:"12px 32px"}}>
+      <header className="glass" style={{position:"sticky",top:0,zIndex:50,borderBottom:"1px solid rgba(0,0,0,0.07)",padding:"12px 32px"}}>
         <div style={{maxWidth:1280,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
 
           {/* Brand */}
           <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,rgba(139,92,246,0.3),rgba(56,189,248,0.2))",border:"1px solid rgba(255,255,255,0.12)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+            <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,rgba(139,92,246,0.3),rgba(56,189,248,0.2))",border:"1px solid rgba(0,0,0,0.12)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
               {/* Google Photos-like icon */}
               <div style={{width:18,height:18,position:"relative"}}>
                 <div style={{position:"absolute",width:8,height:8,borderRadius:"50%",background:"#ef4444",top:0,left:0}}/>
@@ -172,11 +172,11 @@ export default function DiscoveryEngine() {
                 <div style={{position:"absolute",width:6,height:6,borderRadius:"50%",background:"white",top:"50%",left:"50%",transform:"translate(-50%,-50%)",zIndex:1}}/>
               </div>
               {/* Live dot */}
-              <div className="ping-dot" style={{position:"absolute",bottom:-2,right:-2,width:10,height:10,background:"#10b981",borderRadius:"50%",border:"2px solid #09090f"}}/>
+              <div className="ping-dot" style={{position:"absolute",bottom:-2,right:-2,width:10,height:10,background:"#10b981",borderRadius:"50%",border:"2px solid #0f172a"}}/>
             </div>
             <div>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontWeight:800,fontSize:14,color:"#f1f5f9"}}>Google Photos</span>
+                <span style={{fontWeight:800,fontSize:14,color:"#0f172a"}}>Google Photos</span>
                 <span style={{padding:"2px 8px",borderRadius:6,fontSize:10,fontWeight:700,letterSpacing:"0.08em",background:"rgba(139,92,246,0.2)",color:"#c4b5fd",border:"1px solid rgba(139,92,246,0.35)"}}>AI DISCOVERY</span>
               </div>
               <div style={{fontSize:11,color:"#475569",fontFamily:"JetBrains Mono, monospace",marginTop:1}}>
@@ -186,7 +186,7 @@ export default function DiscoveryEngine() {
           </div>
 
           {/* Navigation */}
-          <nav style={{display:"flex",gap:4,padding:6,background:"rgba(0,0,0,0.4)",borderRadius:14,border:"1px solid rgba(255,255,255,0.05)",overflowX:"auto"}}>
+          <nav style={{display:"flex",gap:4,padding:6,background:"rgba(241,245,249,0.8)",borderRadius:14,border:"1px solid rgba(0,0,0,0.05)",overflowX:"auto"}}>
             {TABS.map(tab => (
               <button key={tab.id} className={`tab-btn${activeTab === tab.id ? " active" : ""}`} onClick={() => setActiveTab(tab.id)}>
                 {tab.id === "dashboard" && <Icon.BarChart />}
@@ -203,7 +203,7 @@ export default function DiscoveryEngine() {
 
           {/* Right side */}
           <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{padding:"6px 14px",borderRadius:10,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",fontSize:11,fontFamily:"monospace",color:"#64748b",display:"flex",alignItems:"center",gap:6}}>
+            <div style={{padding:"6px 14px",borderRadius:10,background:"rgba(0,0,0,0.03)",border:"1px solid rgba(0,0,0,0.07)",fontSize:11,fontFamily:"monospace",color:"#64748b",display:"flex",alignItems:"center",gap:6}}>
               <span style={{width:7,height:7,borderRadius:"50%",background:"#22d3ee",display:"inline-block"}}/>
               {vectorCount} Signals Indexed
             </div>
@@ -219,7 +219,7 @@ export default function DiscoveryEngine() {
           <div className="fade-up" style={{display:"flex",flexDirection:"column",gap:32}}>
             <div>
               <div style={{fontSize:11,color:"#7c3aed",fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:6}}>OVERVIEW · Google Photos Search Friction Report</div>
-              <h1 style={{fontSize:28,fontWeight:800,color:"#f1f5f9",margin:0}}>Discovery Dashboard</h1>
+              <h1 style={{fontSize:28,fontWeight:800,color:"#0f172a",margin:0}}>Discovery Dashboard</h1>
               <p style={{color:"#64748b",fontSize:13,marginTop:6,maxWidth:600}}>A snapshot of how Google Photos users struggle to retrieve their own memories — analyzed across Play Store, Reddit, and the support community.</p>
             </div>
 
@@ -243,7 +243,7 @@ export default function DiscoveryEngine() {
 
             {/* Top 3 Struggle Categories */}
             <div>
-              <h2 style={{fontSize:16,fontWeight:700,color:"#e2e8f0",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
+              <h2 style={{fontSize:16,fontWeight:700,color:"#334155",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
                 <span style={{width:3,height:18,background:"linear-gradient(to bottom,#a78bfa,#22d3ee)",borderRadius:2,display:"inline-block"}}/>
                 The 3 Biggest Struggle Categories Found
               </h2>
@@ -272,18 +272,18 @@ export default function DiscoveryEngine() {
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                       <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:c.color,fontWeight:700,letterSpacing:"0.1em"}}>FINDING {c.num}</span>
                     </div>
-                    <h3 style={{fontSize:15,fontWeight:700,color:"#f1f5f9",marginBottom:10}}>{c.title}</h3>
-                    <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.7,marginBottom:14}}>{c.body}</p>
-                    <div style={{padding:"10px 14px",borderRadius:10,background:"rgba(0,0,0,0.4)",border:`1px solid ${c.color}30`}}>
+                    <h3 style={{fontSize:15,fontWeight:700,color:"#0f172a",marginBottom:10}}>{c.title}</h3>
+                    <p style={{fontSize:12,color:"#64748b",lineHeight:1.7,marginBottom:14}}>{c.body}</p>
+                    <div style={{padding:"10px 14px",borderRadius:10,background:"rgba(241,245,249,0.8)",border:`1px solid ${c.color}30`}}>
                       <div style={{fontSize:10,fontFamily:"monospace",color:c.color,marginBottom:4,fontWeight:600}}>REAL USER QUOTE · {c.source.toUpperCase()}</div>
-                      <p style={{fontSize:12,color:"#cbd5e1",fontStyle:"italic",lineHeight:1.6,margin:0}}>&ldquo;{c.example}&rdquo;</p>
+                      <p style={{fontSize:12,color:"#475569",fontStyle:"italic",lineHeight:1.6,margin:0}}>&ldquo;{c.example}&rdquo;</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div style={{textAlign:"center",padding:"16px",borderRadius:12,background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.2)",fontSize:12,color:"#94a3b8"}}>
+            <div style={{textAlign:"center",padding:"16px",borderRadius:12,background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.2)",fontSize:12,color:"#64748b"}}>
               📄 For full analysis with charts and detailed archetypes →
               <button onClick={() => setActiveTab("report")} style={{marginLeft:8,color:"#a78bfa",fontWeight:600,background:"none",border:"none",cursor:"pointer",fontSize:12,textDecoration:"underline"}}>Open Discovery Report</button>
             </div>
@@ -295,7 +295,7 @@ export default function DiscoveryEngine() {
           <div className="fade-up" style={{display:"flex",flexDirection:"column",gap:32}}>
             <div>
               <div style={{fontSize:11,color:"#7c3aed",fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:6}}>DETAILED ANALYSIS · Executive Research Digest</div>
-              <h1 style={{fontSize:28,fontWeight:800,color:"#f1f5f9",margin:0}}>Discovery Report</h1>
+              <h1 style={{fontSize:28,fontWeight:800,color:"#0f172a",margin:0}}>Discovery Report</h1>
               <p style={{color:"#64748b",fontSize:13,marginTop:6,maxWidth:700}}>A structured breakdown of every friction pattern found in 347 pieces of user feedback. Based on real extraction by the AI pipeline, verified against actual review text.</p>
             </div>
 
@@ -314,7 +314,7 @@ export default function DiscoveryEngine() {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
               {/* What users remember */}
               <div className="glass-card" style={{padding:24,borderLeft:"3px solid #a78bfa"}}>
-                <h3 style={{fontSize:14,fontWeight:700,color:"#f1f5f9",marginBottom:4}}>What Users Remember <span style={{fontSize:11,color:"#a78bfa",fontWeight:400}}>(The Clues)</span></h3>
+                <h3 style={{fontSize:14,fontWeight:700,color:"#0f172a",marginBottom:4}}>What Users Remember <span style={{fontSize:11,color:"#a78bfa",fontWeight:400}}>(The Clues)</span></h3>
                 <p style={{fontSize:11,color:"#64748b",marginBottom:20}}>Top-of-mind memory hooks reported when users describe their lost photo</p>
                 {[
                   { label:"Person / Subject of photo (son, friend, loved one)", pct:42 },
@@ -325,7 +325,7 @@ export default function DiscoveryEngine() {
                 ].map(row => (
                   <div key={row.label} style={{marginBottom:14}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:11}}>
-                      <span style={{color:"#cbd5e1"}}>{row.label}</span>
+                      <span style={{color:"#475569"}}>{row.label}</span>
                       <span style={{color:"#a78bfa",fontFamily:"monospace",fontWeight:700}}>{row.pct}%</span>
                     </div>
                     <div className="bar-track"><div className="bar-fill" style={{width:`${row.pct}%`,background:"linear-gradient(to right,#7c3aed,#a78bfa)"}}/></div>
@@ -334,7 +334,7 @@ export default function DiscoveryEngine() {
               </div>
               {/* What users forget */}
               <div className="glass-card" style={{padding:24,borderLeft:"3px solid #22d3ee"}}>
-                <h3 style={{fontSize:14,fontWeight:700,color:"#f1f5f9",marginBottom:4}}>What Users Forget <span style={{fontSize:11,color:"#22d3ee",fontWeight:400}}>(The Gaps)</span></h3>
+                <h3 style={{fontSize:14,fontWeight:700,color:"#0f172a",marginBottom:4}}>What Users Forget <span style={{fontSize:11,color:"#22d3ee",fontWeight:400}}>(The Gaps)</span></h3>
                 <p style={{fontSize:11,color:"#64748b",marginBottom:20}}>Metadata attributes that standard search engines require but users cannot supply</p>
                 {[
                   { label:"Exact calendar date or year", pct:55 },
@@ -345,7 +345,7 @@ export default function DiscoveryEngine() {
                 ].map(row => (
                   <div key={row.label} style={{marginBottom:14}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:11}}>
-                      <span style={{color:"#cbd5e1"}}>{row.label}</span>
+                      <span style={{color:"#475569"}}>{row.label}</span>
                       <span style={{color:"#22d3ee",fontFamily:"monospace",fontWeight:700}}>{row.pct}%</span>
                     </div>
                     <div className="bar-track"><div className="bar-fill" style={{width:`${row.pct}%`,background:"linear-gradient(to right,#0e7490,#22d3ee)"}}/></div>
@@ -356,7 +356,7 @@ export default function DiscoveryEngine() {
 
             {/* Detailed Archetypes */}
             <div>
-              <h2 style={{fontSize:16,fontWeight:700,color:"#e2e8f0",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
+              <h2 style={{fontSize:16,fontWeight:700,color:"#334155",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
                 <span style={{width:3,height:18,background:"linear-gradient(to bottom,#a78bfa,#22d3ee)",borderRadius:2,display:"inline-block"}}/>
                 Detailed Failure Archetypes
               </h2>
@@ -403,21 +403,21 @@ export default function DiscoveryEngine() {
                     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,marginBottom:16,flexWrap:"wrap"}}>
                       <div>
                         <div style={{fontSize:10,fontFamily:"monospace",color:arc.color,fontWeight:700,letterSpacing:"0.1em",marginBottom:6}}>ARCHETYPE {arc.id}</div>
-                        <h3 style={{fontSize:17,fontWeight:700,color:"#f1f5f9",marginBottom:4}}>{arc.title}</h3>
+                        <h3 style={{fontSize:17,fontWeight:700,color:"#0f172a",marginBottom:4}}>{arc.title}</h3>
                         <p style={{fontSize:12,color:arc.color,margin:0,fontStyle:"italic"}}>{arc.sub}</p>
                       </div>
                     </div>
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
                       <div>
                         <div style={{fontSize:10,fontFamily:"monospace",color:"#475569",fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>CORE INSIGHT</div>
-                        <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.7,margin:0}}>{arc.insight}</p>
+                        <p style={{fontSize:12,color:"#64748b",lineHeight:1.7,margin:0}}>{arc.insight}</p>
                       </div>
                       <div>
                         <div style={{fontSize:10,fontFamily:"monospace",color:"#475569",fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>DATA PROOF</div>
-                        <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.7,margin:0}}>{arc.proof}</p>
+                        <p style={{fontSize:12,color:"#64748b",lineHeight:1.7,margin:0}}>{arc.proof}</p>
                         <div style={{marginTop:12,padding:"10px 14px",borderRadius:10,background:`${arc.color}15`,border:`1px solid ${arc.color}30`}}>
                           <div style={{fontSize:10,fontFamily:"monospace",color:arc.color,fontWeight:700,marginBottom:4}}>RECOMMENDATION</div>
-                          <p style={{fontSize:12,color:"#cbd5e1",lineHeight:1.6,margin:0}}>{arc.recommendation}</p>
+                          <p style={{fontSize:12,color:"#475569",lineHeight:1.6,margin:0}}>{arc.recommendation}</p>
                         </div>
                       </div>
                     </div>
@@ -425,9 +425,9 @@ export default function DiscoveryEngine() {
                       <div style={{fontSize:10,fontFamily:"monospace",color:"#475569",fontWeight:700,letterSpacing:"0.08em",marginBottom:10}}>RAW USER QUOTES (VERIFIED FROM DATASET)</div>
                       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:10}}>
                         {arc.quotes.map((q,qi) => (
-                          <div key={qi} style={{padding:"12px 14px",borderRadius:10,background:"rgba(0,0,0,0.5)",border:"1px solid rgba(255,255,255,0.06)"}}>
-                            <div style={{fontSize:10,fontFamily:"monospace",color:SOURCE_COLORS[q.src]?.text||"#94a3b8",marginBottom:6,fontWeight:600}}>{q.src.toUpperCase()}</div>
-                            <p style={{fontSize:11,color:"#cbd5e1",fontStyle:"italic",lineHeight:1.6,margin:0}}>&ldquo;{q.text}&rdquo;</p>
+                          <div key={qi} style={{padding:"12px 14px",borderRadius:10,background:"rgba(241,245,249,0.9)",border:"1px solid rgba(0,0,0,0.06)"}}>
+                            <div style={{fontSize:10,fontFamily:"monospace",color:SOURCE_COLORS[q.src]?.text||"#64748b",marginBottom:6,fontWeight:600}}>{q.src.toUpperCase()}</div>
+                            <p style={{fontSize:11,color:"#475569",fontStyle:"italic",lineHeight:1.6,margin:0}}>&ldquo;{q.text}&rdquo;</p>
                           </div>
                         ))}
                       </div>
@@ -444,7 +444,7 @@ export default function DiscoveryEngine() {
           <div className="fade-up" style={{display:"flex",flexDirection:"column",gap:24}}>
             <div>
               <div style={{fontSize:11,color:"#7c3aed",fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:6}}>QUALITATIVE CORPUS · {REAL_REVIEWS.length} Verified Friction Signals</div>
-              <h1 style={{fontSize:26,fontWeight:800,color:"#f1f5f9",margin:0}}>Actual User Reviews</h1>
+              <h1 style={{fontSize:26,fontWeight:800,color:"#0f172a",margin:0}}>Actual User Reviews</h1>
               <p style={{color:"#64748b",fontSize:13,marginTop:6}}>Real feedback from real users. Every quote below comes directly from our scraped dataset — nothing is fabricated.</p>
             </div>
 
@@ -452,7 +452,7 @@ export default function DiscoveryEngine() {
             <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
               <span style={{fontSize:11,color:"#475569",fontFamily:"monospace",marginRight:4}}>Filter by source:</span>
               {["All", "Play Store", "Reddit", "Photos Community"].map(f => (
-                <button key={f} className={`filter-btn${activeFilter === f ? " active" : ""}`} onClick={() => setActiveFilter(f)} style={{background:activeFilter===f ? SOURCE_COLORS[f]?.dot||"rgba(139,92,246,0.8)" : "transparent",borderColor:activeFilter===f ? "transparent" : "rgba(255,255,255,0.08)",color:activeFilter===f ? "#fff" : "#64748b"}}>
+                <button key={f} className={`filter-btn${activeFilter === f ? " active" : ""}`} onClick={() => setActiveFilter(f)} style={{background:activeFilter===f ? SOURCE_COLORS[f]?.dot||"rgba(139,92,246,0.8)" : "transparent",borderColor:activeFilter===f ? "transparent" : "rgba(0,0,0,0.08)",color:activeFilter===f ? "#fff" : "#64748b"}}>
                   {f}
                 </button>
               ))}
@@ -472,7 +472,7 @@ export default function DiscoveryEngine() {
                       </span>
                     </div>
                     <div style={{fontSize:10,fontFamily:"monospace",color:"#475569",marginBottom:6,textTransform:"uppercase",letterSpacing:"0.06em"}}>Struggle: {r.struggle}</div>
-                    <blockquote style={{margin:0,fontSize:12,color:"#cbd5e1",fontStyle:"italic",lineHeight:1.7,padding:"10px 14px",borderRadius:10,background:"rgba(0,0,0,0.4)",border:"1px solid rgba(255,255,255,0.05)"}}>
+                    <blockquote style={{margin:0,fontSize:12,color:"#475569",fontStyle:"italic",lineHeight:1.7,padding:"10px 14px",borderRadius:10,background:"rgba(241,245,249,0.8)",border:"1px solid rgba(0,0,0,0.05)"}}>
                       &ldquo;{r.quote}&rdquo;
                     </blockquote>
                     <div style={{marginTop:12,display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -498,7 +498,7 @@ export default function DiscoveryEngine() {
                 <span className="ping-dot" style={{width:8,height:8,background:"#10b981",borderRadius:"50%",display:"inline-flex"}}/>
                 DATA PIPELINE ACTIVE · ALL WORKERS ONLINE
               </div>
-              <h1 style={{fontSize:26,fontWeight:800,color:"#f1f5f9",margin:0}}>Live Ingestion Engine</h1>
+              <h1 style={{fontSize:26,fontWeight:800,color:"#0f172a",margin:0}}>Live Ingestion Engine</h1>
               <p style={{color:"#64748b",fontSize:13,marginTop:6}}>Tracks the automated daily scraping and AI extraction pipeline across all three data sources.</p>
             </div>
 
@@ -514,13 +514,13 @@ export default function DiscoveryEngine() {
 
             {/* Pipeline table */}
             <div className="glass-card" style={{overflow:"hidden"}}>
-              <div style={{padding:"16px 20px",borderBottom:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.01)",display:"flex",alignItems:"center",gap:10}}>
+              <div style={{padding:"16px 20px",borderBottom:"1px solid rgba(0,0,0,0.07)",background:"rgba(255,255,255,0.01)",display:"flex",alignItems:"center",gap:10}}>
                 <Icon.Activity />
-                <span style={{fontSize:13,fontWeight:700,color:"#f1f5f9",fontFamily:"monospace"}}>Active Scraper Pipeline Registry</span>
+                <span style={{fontSize:13,fontWeight:700,color:"#0f172a",fontFamily:"monospace"}}>Active Scraper Pipeline Registry</span>
               </div>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                 <thead>
-                  <tr style={{borderBottom:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.01)"}}>
+                  <tr style={{borderBottom:"1px solid rgba(0,0,0,0.07)",background:"rgba(255,255,255,0.01)"}}>
                     {["Data Source","Scraper Method","Status","Reviews Fetched","Struggles Isolated","Processing Rate"].map(h => (
                       <th key={h} style={{padding:"12px 20px",textAlign:"left",fontSize:10,fontFamily:"monospace",color:"#475569",textTransform:"uppercase",letterSpacing:"0.07em",fontWeight:600}}>{h}</th>
                     ))}
@@ -544,9 +544,9 @@ export default function DiscoveryEngine() {
                       badge:{ bg:"rgba(99,102,241,0.12)", text:"#a5b4fc", border:"rgba(99,102,241,0.35)" }
                     },
                   ].map((row, i) => (
-                    <tr key={i} style={{borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                    <tr key={i} style={{borderBottom:"1px solid rgba(0,0,0,0.05)"}}>
                       <td style={{padding:"16px 20px"}}>
-                        <div style={{fontWeight:600,color:"#e2e8f0"}}>{row.name}</div>
+                        <div style={{fontWeight:600,color:"#334155"}}>{row.name}</div>
                         <div style={{fontSize:10,fontFamily:"monospace",color:"#475569",marginTop:3}}>{row.pkg}</div>
                       </td>
                       <td style={{padding:"16px 20px",color:"#64748b",fontFamily:"monospace",fontSize:11}}>{row.pkg}</td>
@@ -555,7 +555,7 @@ export default function DiscoveryEngine() {
                           <span className="pulse-dot" style={{background:"#10b981",width:6,height:6}}/>Active
                         </span>
                       </td>
-                      <td style={{padding:"16px 20px",fontFamily:"monospace",color:"#e2e8f0",fontWeight:600}}>{row.fetched}</td>
+                      <td style={{padding:"16px 20px",fontFamily:"monospace",color:"#334155",fontWeight:600}}>{row.fetched}</td>
                       <td style={{padding:"16px 20px",fontFamily:"monospace",color:row.color,fontWeight:700}}>{row.isolated}</td>
                       <td style={{padding:"16px 20px",fontFamily:"monospace",color:"#64748b"}}>{row.rate}</td>
                     </tr>
@@ -566,7 +566,7 @@ export default function DiscoveryEngine() {
 
             {/* How the pipeline works */}
             <div>
-              <h2 style={{fontSize:15,fontWeight:700,color:"#e2e8f0",marginBottom:16}}>How This Engine Works — Step by Step</h2>
+              <h2 style={{fontSize:15,fontWeight:700,color:"#334155",marginBottom:16}}>How This Engine Works — Step by Step</h2>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:14}}>
                 {[
                   { step:"01", color:"#22d3ee", title:"Scraping", body:"Python scrapers run daily at 02:00 AM pulling the latest feedback from all three sources filtered by search-related keywords." },
@@ -576,7 +576,7 @@ export default function DiscoveryEngine() {
                 ].map(s => (
                   <div key={s.step} className="glass-card" style={{padding:20,borderTop:`2px solid ${s.color}`}}>
                     <div style={{fontFamily:"monospace",fontSize:11,color:s.color,fontWeight:700,marginBottom:10}}>STEP {s.step}</div>
-                    <h3 style={{fontSize:14,fontWeight:700,color:"#f1f5f9",marginBottom:8}}>{s.title}</h3>
+                    <h3 style={{fontSize:14,fontWeight:700,color:"#0f172a",marginBottom:8}}>{s.title}</h3>
                     <p style={{fontSize:12,color:"#64748b",lineHeight:1.7,margin:0}}>{s.body}</p>
                   </div>
                 ))}
@@ -590,7 +590,7 @@ export default function DiscoveryEngine() {
           <div className="fade-up" style={{display:"flex",flexDirection:"column",gap:20}}>
             <div>
               <div style={{fontSize:11,color:"#22d3ee",fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:6}}>RAG INTERFACE · ChromaDB + Groq LLM</div>
-              <h1 style={{fontSize:26,fontWeight:800,color:"#f1f5f9",margin:0}}>PM Copilot</h1>
+              <h1 style={{fontSize:26,fontWeight:800,color:"#0f172a",margin:0}}>PM Copilot</h1>
               <p style={{color:"#64748b",fontSize:13,marginTop:6}}>Ask questions about the {vectorCount} indexed user struggles in our database. The AI will retrieve the most semantically relevant reviews and synthesize an analytical answer.</p>
             </div>
 
@@ -639,9 +639,9 @@ export default function DiscoveryEngine() {
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                     {group.questions.map(q => (
                       <button key={q} onClick={() => { setChatInput(q); }}
-                        style={{padding:"8px 14px",borderRadius:20,background:"rgba(255,255,255,0.03)",border:`1px solid ${group.color}33`,color:"#94a3b8",fontSize:11,textAlign:"left",cursor:"pointer",fontStyle:"italic",transition:"all 0.2s",whiteSpace:"nowrap"}}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor=group.color; e.currentTarget.style.color="#e2e8f0"; e.currentTarget.style.background=`${group.color}15`; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor=`${group.color}33`; e.currentTarget.style.color="#94a3b8"; e.currentTarget.style.background="rgba(255,255,255,0.03)"; }}>
+                        style={{padding:"8px 14px",borderRadius:20,background:"rgba(0,0,0,0.03)",border:`1px solid ${group.color}33`,color:"#64748b",fontSize:11,textAlign:"left",cursor:"pointer",fontStyle:"italic",transition:"all 0.2s",whiteSpace:"nowrap"}}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor=group.color; e.currentTarget.style.color="#334155"; e.currentTarget.style.background=`${group.color}15`; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor=`${group.color}33`; e.currentTarget.style.color="#64748b"; e.currentTarget.style.background="rgba(0,0,0,0.03)"; }}>
                         &ldquo;{q}&rdquo;
                       </button>
                     ))}
@@ -653,10 +653,10 @@ export default function DiscoveryEngine() {
 
             {/* Chat window */}
             <div className="glass-card" style={{display:"flex",flexDirection:"column",height:480,overflow:"hidden"}}>
-              <div style={{padding:"14px 20px",borderBottom:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",gap:12,background:"rgba(255,255,255,0.01)"}}>
+              <div style={{padding:"14px 20px",borderBottom:"1px solid rgba(0,0,0,0.07)",display:"flex",alignItems:"center",gap:12,background:"rgba(255,255,255,0.01)"}}>
                 <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#7c3aed,#0e7490)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:14}}>🤖</div>
                 <div>
-                  <div style={{fontSize:12,fontWeight:700,color:"#f1f5f9"}}>Google Photos Search Intelligence Agent</div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#0f172a"}}>Google Photos Search Intelligence Agent</div>
                   <div style={{fontSize:10,color:"#475569",fontFamily:"monospace"}}>RAG Pipeline · {vectorCount} vectors · Groq Qwen3.8B</div>
                 </div>
                 <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6,fontSize:10,color:"#10b981",fontFamily:"monospace"}}>
@@ -681,7 +681,7 @@ export default function DiscoveryEngine() {
                     <div className={msg.role==="user"?"chat-bubble-user":"chat-bubble-ai"} style={{maxWidth:"75%",padding:"12px 16px"}}>
                       {msg.role==="user" && <div style={{fontSize:10,fontFamily:"monospace",color:"#c4b5fd",marginBottom:6,display:"flex",alignItems:"center",gap:4}}><Icon.User />Product Manager</div>}
                       {msg.role==="assistant" && <div style={{fontSize:10,fontFamily:"monospace",color:"#22d3ee",marginBottom:6,display:"flex",alignItems:"center",gap:4}}><Icon.Cpu />AI Copilot · RAG</div>}
-                      <p style={{fontSize:12,lineHeight:1.7,margin:0,whiteSpace:"pre-wrap",color:msg.role==="user"?"#e2e8f0":"#94a3b8"}}>{msg.content}</p>
+                      <p style={{fontSize:12,lineHeight:1.7,margin:0,whiteSpace:"pre-wrap",color:msg.role==="user"?"#334155":"#64748b"}}>{msg.content}</p>
                       {msg.sources && msg.sources.length > 0 && (
                         <div style={{marginTop:10,padding:"8px 12px",borderRadius:8,background:"rgba(34,211,238,0.06)",border:"1px solid rgba(34,211,238,0.15)"}}>
                           <div style={{fontSize:10,fontFamily:"monospace",color:"#22d3ee",fontWeight:700,marginBottom:6}}>TOP GROUNDING CITATIONS FROM CHROMADB</div>
@@ -706,13 +706,13 @@ export default function DiscoveryEngine() {
               </div>
 
               {/* Input */}
-              <form onSubmit={handleChat} style={{borderTop:"1px solid rgba(255,255,255,0.07)",padding:16,display:"flex",gap:12}}>
+              <form onSubmit={handleChat} style={{borderTop:"1px solid rgba(0,0,0,0.07)",padding:16,display:"flex",gap:12}}>
                 <input
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   disabled={isTyping}
                   placeholder="Ask about user struggles (e.g. 'What do users say about searching for old photos?')"
-                  style={{flex:1,background:"rgba(0,0,0,0.5)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,padding:"10px 16px",fontSize:12,color:"#e2e8f0",outline:"none",fontFamily:"inherit"}}
+                  style={{flex:1,background:"rgba(241,245,249,0.9)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,padding:"10px 16px",fontSize:12,color:"#334155",outline:"none",fontFamily:"inherit"}}
                   onFocus={e => (e.currentTarget.style.borderColor="rgba(34,211,238,0.5)")}
                   onBlur={e => (e.currentTarget.style.borderColor="rgba(255,255,255,0.1)")}
                 />
