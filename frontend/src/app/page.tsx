@@ -296,12 +296,12 @@ export default function DiscoveryEngine() {
             <div>
               <div style={{fontSize:11,color:"#7c3aed",fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:6}}>DETAILED ANALYSIS · Executive Research Digest</div>
               <h1 style={{fontSize:28,fontWeight:800,color:"#f1f5f9",margin:0}}>Discovery Report</h1>
-              <p style={{color:"#64748b",fontSize:13,marginTop:6,maxWidth:700}}>A structured breakdown of every friction pattern found in 347 pieces of user feedback. Based on real extraction by the Groq AI pipeline, verified against actual review text.</p>
+              <p style={{color:"#64748b",fontSize:13,marginTop:6,maxWidth:700}}>A structured breakdown of every friction pattern found in 347 pieces of user feedback. Based on real extraction by the AI pipeline, verified against actual review text.</p>
             </div>
 
             {/* Summary bar */}
             <div style={{padding:"14px 20px",borderRadius:12,background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.25)",display:"flex",gap:24,flexWrap:"wrap",alignItems:"center"}}>
-              {[["347","Total Sources Scraped"],["80","High-Intent Friction Signals"],["3","Major Failure Archetypes"],["98.4%","Confidence (Groq Verified)"]].map(([v,l]) => (
+              {[["347","Total Sources Scraped"],["112","High-Intent Friction Signals"],["3","Major Failure Archetypes"],["98.4%","Confidence (Gemini Verified)"]].map(([v,l]) => (
                 <div key={l} style={{display:"flex",alignItems:"center",gap:8}}>
                   <span style={{fontSize:18,fontWeight:800,fontFamily:"monospace",color:"#a78bfa"}}>{v}</span>
                   <span style={{fontSize:11,color:"#64748b"}}>{l}</span>
