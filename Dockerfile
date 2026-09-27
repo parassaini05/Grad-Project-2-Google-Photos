@@ -14,5 +14,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the app
 COPY . .
 
-# Run the scheduler in the background and start FastAPI
-CMD python scheduler.py & uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+# Run the startup script
+CMD ["bash", "start.sh"]

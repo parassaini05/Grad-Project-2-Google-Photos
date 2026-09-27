@@ -34,7 +34,7 @@ app.add_middleware(
 
 # Database Setup
 def get_collection():
-    client = chromadb.PersistentClient(path="../chroma_db") # one level up from backend/
+    client = chromadb.PersistentClient(path="./chroma_db") # same directory as running from /app
     bge_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="BAAI/bge-small-en-v1.5")
     return client.get_or_create_collection("retrieval_failures", embedding_function=bge_ef)
 
