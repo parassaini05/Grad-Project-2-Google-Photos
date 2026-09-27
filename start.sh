@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Pre-populate ChromaDB with the existing processed data (so the app works immediately)
-python phase3_storage.py
+# Database is pre-populated via Git
 
 # Start the scheduler in the background (for future updates)
 python scheduler.py &

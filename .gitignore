@@ -5,4 +5,4 @@ venv/
 .venv/
 env/
 client_secret.json
-chroma_db/
+# chroma_db/ (removed to allow checking in pre-populated DB)
