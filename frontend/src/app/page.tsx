@@ -58,9 +58,9 @@ const TABS = [
 ];
 
 const SOURCE_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-  "Play Store":       { bg: "rgba(16,185,129,0.12)", text: "#6ee7b7", border: "rgba(16,185,129,0.35)", dot: "#10b981" },
-  "Reddit":           { bg: "rgba(249,115,22,0.12)", text: "#fdba74", border: "rgba(249,115,22,0.35)", dot: "#f97316" },
-  "Photos Community": { bg: "rgba(99,102,241,0.12)",  text: "#a5b4fc", border: "rgba(99,102,241,0.35)",  dot: "#6366f1" },
+  "Play Store":       { bg: "rgba(16,185,129,0.12)", text: "#059669", border: "rgba(16,185,129,0.35)", dot: "#10b981" },
+  "Reddit":           { bg: "rgba(249,115,22,0.12)", text: "#ea580c", border: "rgba(249,115,22,0.35)", dot: "#f97316" },
+  "Photos Community": { bg: "rgba(99,102,241,0.12)",  text: "#4f46e5", border: "rgba(99,102,241,0.35)",  dot: "#6366f1" },
 };
 
 export default function DiscoveryEngine() {
@@ -137,7 +137,7 @@ export default function DiscoveryEngine() {
         .tab-btn:not(.active) { background: transparent; color: #0f172a; }
         .tab-btn:not(.active):hover { background: rgba(0,0,0,0.04); color: #0f172a; }
         .filter-btn { padding: 6px 16px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid rgba(0,0,0,0.08); transition: all 0.2s; }
-        .filter-btn.active { background: rgba(139,92,246,0.8); border-color: rgba(139,92,246,1); color: #fff; }
+        .filter-btn.active { background: rgba(139,92,246,0.8); border-color: rgba(139,92,246,1); color: #ffffff; }
         .filter-btn:not(.active) { background: transparent; color: #0f172a; }
         .filter-btn:not(.active):hover { background: rgba(0,0,0,0.05); color: #0f172a; }
         .bar-fill { height: 100%; border-radius: 4px; transition: width 1.2s cubic-bezier(0.16,1,0.3,1); }
@@ -177,10 +177,10 @@ export default function DiscoveryEngine() {
             <div>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <span style={{fontWeight:800,fontSize:14,color:"#0f172a"}}>Google Photos</span>
-                <span style={{padding:"2px 8px",borderRadius:6,fontSize:10,fontWeight:700,letterSpacing:"0.08em",background:"rgba(139,92,246,0.2)",color:"#c4b5fd",border:"1px solid rgba(139,92,246,0.35)"}}>AI DISCOVERY</span>
+                <span style={{padding:"2px 8px",borderRadius:6,fontSize:10,fontWeight:700,letterSpacing:"0.08em",background:"rgba(139,92,246,0.2)",color:"#6d28d9",border:"1px solid rgba(139,92,246,0.35)"}}>AI DISCOVERY</span>
               </div>
               <div style={{fontSize:11,color:"#1e293b",fontFamily:"JetBrains Mono, monospace",marginTop:1}}>
-                RAG Semantic Core · <span style={{color:"#22d3ee"}}>ChromaDB v2.4</span>
+                RAG Semantic Core · <span style={{color:"#0891b2"}}>ChromaDB v2.4</span>
               </div>
             </div>
           </div>
@@ -195,7 +195,7 @@ export default function DiscoveryEngine() {
                 {tab.id === "engine" && <Icon.Activity />}
                 {tab.id === "copilot" && <Icon.Bot />}
                 {tab.label}
-                {tab.id === "reviews" && <span style={{padding:"1px 6px",borderRadius:10,fontSize:10,background:"rgba(139,92,246,0.2)",color:"#c4b5fd",fontFamily:"monospace"}}>{REAL_REVIEWS.length}</span>}
+                {tab.id === "reviews" && <span style={{padding:"1px 6px",borderRadius:10,fontSize:10,background:"rgba(139,92,246,0.2)",color:"#6d28d9",fontFamily:"monospace"}}>{REAL_REVIEWS.length}</span>}
                 {tab.id === "engine" && <span className="pulse-dot" style={{background:"#10b981"}}/>}
               </button>
             ))}
@@ -204,7 +204,7 @@ export default function DiscoveryEngine() {
           {/* Right side */}
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <div style={{padding:"6px 14px",borderRadius:10,background:"rgba(0,0,0,0.03)",border:"1px solid rgba(0,0,0,0.07)",fontSize:11,fontFamily:"monospace",color:"#0f172a",display:"flex",alignItems:"center",gap:6}}>
-              <span style={{width:7,height:7,borderRadius:"50%",background:"#22d3ee",display:"inline-block"}}/>
+              <span style={{width:7,height:7,borderRadius:"50%",background:"#0891b2",display:"inline-block"}}/>
               {vectorCount} Signals Indexed
             </div>
           </div>
@@ -226,12 +226,12 @@ export default function DiscoveryEngine() {
             {/* Metric cards */}
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:16}}>
               {[
-                { label: "Total Reviews Analyzed", value: "347", sub: "Play Store (53) + Reddit (274) + Support Community (20)", color: "#a78bfa" },
-                { label: "Genuine Search Struggles", value: "112", sub: "Extracted by Groq AI from all 347 raw reviews", color: "#22d3ee" },
-                { label: "Play Store Signals", value: "24", sub: "Out of 53 scraped Play Store reviews", color: "#fb923c" },
-                { label: "Reddit Signals", value: "74", sub: "Out of 274 Reddit submissions", color: "#f472b6" },
-                { label: "Community Signals", value: "14", sub: "Out of 20 Support Community threads", color: "#4ade80" },
-                { label: "Top Pain Point", value: "Lost Photos", sub: "Users cannot find deleted/old photos by any context", color: "#facc15" },
+                { label: "Total Reviews Analyzed", value: "347", sub: "Play Store (53) + Reddit (274) + Support Community (20)", color: "#7c3aed" },
+                { label: "Genuine Search Struggles", value: "112", sub: "Extracted by Groq AI from all 347 raw reviews", color: "#0891b2" },
+                { label: "Play Store Signals", value: "24", sub: "Out of 53 scraped Play Store reviews", color: "#d97706" },
+                { label: "Reddit Signals", value: "74", sub: "Out of 274 Reddit submissions", color: "#db2777" },
+                { label: "Community Signals", value: "14", sub: "Out of 20 Support Community threads", color: "#16a34a" },
+                { label: "Top Pain Point", value: "Lost Photos", sub: "Users cannot find deleted/old photos by any context", color: "#ca8a04" },
               ].map((m, i) => (
                 <div key={i} className="glass-card" style={{padding:20}}>
                   <div style={{fontSize:11,color:"#1e293b",fontFamily:"monospace",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>{m.label}</div>
@@ -244,25 +244,25 @@ export default function DiscoveryEngine() {
             {/* Top 3 Struggle Categories */}
             <div>
               <h2 style={{fontSize:16,fontWeight:700,color:"#0f172a",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
-                <span style={{width:3,height:18,background:"linear-gradient(to bottom,#a78bfa,#22d3ee)",borderRadius:2,display:"inline-block"}}/>
+                <span style={{width:3,height:18,background:"linear-gradient(to bottom,#7c3aed,#0891b2)",borderRadius:2,display:"inline-block"}}/>
                 The 3 Biggest Struggle Categories Found
               </h2>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:16}}>
                 {[
                   {
-                    num:"01", color:"#a78bfa", title:"Permanently Lost Photos",
+                    num:"01", color:"#7c3aed", title:"Permanently Lost Photos",
                     body:"The single most common complaint across all three platforms. Users lose photos when storage fills up, when devices are reset, or when they accidentally delete from trash. They have zero context clues left and cannot find the photo through any search.",
                     example:"I lost photos of my 1-year-old son since he was born. I have no idea how to find them.",
                     source:"Photos Community",
                   },
                   {
-                    num:"02", color:"#22d3ee", title:"Fuzzy Timeframe / Year Uncertainty",
+                    num:"02", color:"#0891b2", title:"Fuzzy Timeframe / Year Uncertainty",
                     body:"Users remember an event happened 'around' a certain year or season (e.g., 'summer 2018 or 2019') but cannot remember the exact date. The timeline scroll is useless because it requires precise scrubbing through years of photos.",
                     example:"Scrolling back 5 years is a nightmare. I know it was summer 2018 or 2019 near a lake — why can't I just search that?",
                     source:"Reddit",
                   },
                   {
-                    num:"03", color:"#fb923c", title:"Duplicates & Messy Organization",
+                    num:"03", color:"#d97706", title:"Duplicates & Messy Organization",
                     body:"Users trying to find one specific photo are blocked by thousands of duplicates, unorganized WhatsApp/AirDrop imports, and motion photo file format confusion. The search shows wrong results because the library itself is incoherent.",
                     example:"I cannot find a single article on how to remove duplicate photos without 3rd party software. Why can't Google Photos do this?",
                     source:"Reddit",
@@ -285,7 +285,7 @@ export default function DiscoveryEngine() {
 
             <div style={{textAlign:"center",padding:"16px",borderRadius:12,background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.2)",fontSize:12,color:"#0f172a"}}>
               📄 For full analysis with charts and detailed archetypes →
-              <button onClick={() => setActiveTab("report")} style={{marginLeft:8,color:"#a78bfa",fontWeight:600,background:"none",border:"none",cursor:"pointer",fontSize:12,textDecoration:"underline"}}>Open Discovery Report</button>
+              <button onClick={() => setActiveTab("report")} style={{marginLeft:8,color:"#7c3aed",fontWeight:600,background:"none",border:"none",cursor:"pointer",fontSize:12,textDecoration:"underline"}}>Open Discovery Report</button>
             </div>
           </div>
         )}
@@ -303,18 +303,18 @@ export default function DiscoveryEngine() {
             <div style={{padding:"14px 20px",borderRadius:12,background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.25)",display:"flex",gap:24,flexWrap:"wrap",alignItems:"center"}}>
               {[["347","Total Sources Scraped"],["112","High-Intent Friction Signals"],["3","Major Failure Archetypes"],["98.4%","Confidence (Gemini Verified)"]].map(([v,l]) => (
                 <div key={l} style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:18,fontWeight:800,fontFamily:"monospace",color:"#a78bfa"}}>{v}</span>
+                  <span style={{fontSize:18,fontWeight:800,fontFamily:"monospace",color:"#7c3aed"}}>{v}</span>
                   <span style={{fontSize:11,color:"#0f172a"}}>{l}</span>
                 </div>
               ))}
-              <div style={{marginLeft:"auto",padding:"4px 12px",borderRadius:20,background:"rgba(16,185,129,0.15)",border:"1px solid rgba(16,185,129,0.35)",fontSize:10,color:"#6ee7b7",fontWeight:700,fontFamily:"monospace"}}>DATA VALIDATED</div>
+              <div style={{marginLeft:"auto",padding:"4px 12px",borderRadius:20,background:"rgba(16,185,129,0.15)",border:"1px solid rgba(16,185,129,0.35)",fontSize:10,color:"#059669",fontWeight:700,fontFamily:"monospace"}}>DATA VALIDATED</div>
             </div>
 
             {/* Charts */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
               {/* What users remember */}
-              <div className="glass-card" style={{padding:24,borderLeft:"3px solid #a78bfa"}}>
-                <h3 style={{fontSize:14,fontWeight:700,color:"#0f172a",marginBottom:4}}>What Users Remember <span style={{fontSize:11,color:"#a78bfa",fontWeight:400}}>(The Clues)</span></h3>
+              <div className="glass-card" style={{padding:24,borderLeft:"3px solid #7c3aed"}}>
+                <h3 style={{fontSize:14,fontWeight:700,color:"#0f172a",marginBottom:4}}>What Users Remember <span style={{fontSize:11,color:"#7c3aed",fontWeight:400}}>(The Clues)</span></h3>
                 <p style={{fontSize:11,color:"#0f172a",marginBottom:20}}>Top-of-mind memory hooks reported when users describe their lost photo</p>
                 {[
                   { label:"Person / Subject of photo (son, friend, loved one)", pct:42 },
@@ -326,15 +326,15 @@ export default function DiscoveryEngine() {
                   <div key={row.label} style={{marginBottom:14}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:11}}>
                       <span style={{color:"#1e293b"}}>{row.label}</span>
-                      <span style={{color:"#a78bfa",fontFamily:"monospace",fontWeight:700}}>{row.pct}%</span>
+                      <span style={{color:"#7c3aed",fontFamily:"monospace",fontWeight:700}}>{row.pct}%</span>
                     </div>
-                    <div className="bar-track"><div className="bar-fill" style={{width:`${row.pct}%`,background:"linear-gradient(to right,#7c3aed,#a78bfa)"}}/></div>
+                    <div className="bar-track"><div className="bar-fill" style={{width:`${row.pct}%`,background:"linear-gradient(to right,#7c3aed,#7c3aed)"}}/></div>
                   </div>
                 ))}
               </div>
               {/* What users forget */}
-              <div className="glass-card" style={{padding:24,borderLeft:"3px solid #22d3ee"}}>
-                <h3 style={{fontSize:14,fontWeight:700,color:"#0f172a",marginBottom:4}}>What Users Forget <span style={{fontSize:11,color:"#22d3ee",fontWeight:400}}>(The Gaps)</span></h3>
+              <div className="glass-card" style={{padding:24,borderLeft:"3px solid #0891b2"}}>
+                <h3 style={{fontSize:14,fontWeight:700,color:"#0f172a",marginBottom:4}}>What Users Forget <span style={{fontSize:11,color:"#0891b2",fontWeight:400}}>(The Gaps)</span></h3>
                 <p style={{fontSize:11,color:"#0f172a",marginBottom:20}}>Metadata attributes that standard search engines require but users cannot supply</p>
                 {[
                   { label:"Exact calendar date or year", pct:55 },
@@ -346,9 +346,9 @@ export default function DiscoveryEngine() {
                   <div key={row.label} style={{marginBottom:14}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:11}}>
                       <span style={{color:"#1e293b"}}>{row.label}</span>
-                      <span style={{color:"#22d3ee",fontFamily:"monospace",fontWeight:700}}>{row.pct}%</span>
+                      <span style={{color:"#0891b2",fontFamily:"monospace",fontWeight:700}}>{row.pct}%</span>
                     </div>
-                    <div className="bar-track"><div className="bar-fill" style={{width:`${row.pct}%`,background:"linear-gradient(to right,#0e7490,#22d3ee)"}}/></div>
+                    <div className="bar-track"><div className="bar-fill" style={{width:`${row.pct}%`,background:"linear-gradient(to right,#0e7490,#0891b2)"}}/></div>
                   </div>
                 ))}
               </div>
@@ -357,13 +357,13 @@ export default function DiscoveryEngine() {
             {/* Detailed Archetypes */}
             <div>
               <h2 style={{fontSize:16,fontWeight:700,color:"#0f172a",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
-                <span style={{width:3,height:18,background:"linear-gradient(to bottom,#a78bfa,#22d3ee)",borderRadius:2,display:"inline-block"}}/>
+                <span style={{width:3,height:18,background:"linear-gradient(to bottom,#7c3aed,#0891b2)",borderRadius:2,display:"inline-block"}}/>
                 Detailed Failure Archetypes
               </h2>
               <div style={{display:"flex",flexDirection:"column",gap:16}}>
                 {[
                   {
-                    id:"01", color:"#a78bfa", title:"Permanently Lost Photos — Zero Context Recovery",
+                    id:"01", color:"#7c3aed", title:"Permanently Lost Photos — Zero Context Recovery",
                     sub:"When backup was never confirmed / storage was full",
                     insight:"The most critical failure mode. Users lose photos to accidental deletion or storage overflow and have absolutely no context clues left to aid retrieval. They don't know the date, the album, or whether backup was active. The current 'Trash' system has a 60-day limit, after which recovery is impossible even with a Google account.",
                     proof:"20 of 20 Google Support Community threads relate to this. 10 of 30 Play Store signals mention 'deleted' or 'lost'. The total signal count across all sources: ~38 of 80 (47%).",
@@ -375,7 +375,7 @@ export default function DiscoveryEngine() {
                     ]
                   },
                   {
-                    id:"02", color:"#22d3ee", title:"Fuzzy Timeframe — The Year Uncertainty Problem",
+                    id:"02", color:"#0891b2", title:"Fuzzy Timeframe — The Year Uncertainty Problem",
                     sub:"Users know 'roughly when' but not the exact year or date",
                     insight:"Users remember that a photo was taken 'around summer 2018 or 2019' or 'a couple of years before I moved'. The current timeline scroll requires precise interaction to navigate multi-year gaps. There is no natural-language way to specify 'summer 2018 or 2019, near a lake'. Search returns nothing because no exact date metadata matches.",
                     proof:"Identified in Reddit threads and Play Store reviews. Users explicitly say 'scrolling back years is a nightmare' and describe approximate temporal brackets instead of ISO timestamps.",
@@ -387,7 +387,7 @@ export default function DiscoveryEngine() {
                     ]
                   },
                   {
-                    id:"03", color:"#fb923c", title:"Duplicate Chaos — When the Library is Incoherent",
+                    id:"03", color:"#d97706", title:"Duplicate Chaos — When the Library is Incoherent",
                     sub:"AirDrop, WhatsApp, motion photos, and Takeout exports create library noise",
                     insight:"A significant portion of users cannot find specific photos because their library is so disorganized with duplicates from messaging apps (WhatsApp, AirDrop, Facebook Messenger) and motion photo formats (.MP.jpg, .LS.mp4) that search returns irrelevant results. Google Photos has no native deduplication tool.",
                     proof:"Multiple Reddit threads explicitly compare Google Photos unfavorably to iOS's built-in duplicate detection. Users with 64GB+ of photos report being completely overwhelmed.",
@@ -504,10 +504,10 @@ export default function DiscoveryEngine() {
 
             {/* Next run card */}
             <div style={{padding:"16px 24px",borderRadius:14,background:"rgba(34,211,238,0.06)",border:"1px solid rgba(34,211,238,0.2)",display:"flex",alignItems:"center",gap:16}}>
-              <div style={{width:44,height:44,borderRadius:12,background:"rgba(34,211,238,0.1)",border:"1px solid rgba(34,211,238,0.25)",display:"flex",alignItems:"center",justifyContent:"center",color:"#22d3ee"}}><Icon.Timer /></div>
+              <div style={{width:44,height:44,borderRadius:12,background:"rgba(34,211,238,0.1)",border:"1px solid rgba(34,211,238,0.25)",display:"flex",alignItems:"center",justifyContent:"center",color:"#0891b2"}}><Icon.Timer /></div>
               <div>
                 <div style={{fontSize:10,fontFamily:"monospace",color:"#1e293b",textTransform:"uppercase",letterSpacing:"0.08em"}}>Next Automated Fetch (Scheduler)</div>
-                <div style={{fontSize:20,fontWeight:800,fontFamily:"JetBrains Mono, monospace",color:"#22d3ee"}}>02:00 AM</div>
+                <div style={{fontSize:20,fontWeight:800,fontFamily:"JetBrains Mono, monospace",color:"#0891b2"}}>02:00 AM</div>
                 <div style={{fontSize:11,color:"#1e293b"}}>Runs daily — scrapes all 3 sources → AI filters → ChromaDB ingestion</div>
               </div>
             </div>
@@ -531,17 +531,17 @@ export default function DiscoveryEngine() {
                     {
                       name:"Google Play Store", pkg:"google-play-scraper (Python)", color:"#10b981",
                       fetched:"53 reviews", isolated:"24 signals", rate:"45.3%",
-                      badge:{ bg:"rgba(16,185,129,0.12)", text:"#6ee7b7", border:"rgba(16,185,129,0.35)" }
+                      badge:{ bg:"rgba(16,185,129,0.12)", text:"#059669", border:"rgba(16,185,129,0.35)" }
                     },
                     {
                       name:"Reddit (r/googlephotos)", pkg:"PRAW / Pushshift API", color:"#f97316",
                       fetched:"274 submissions", isolated:"74 signals", rate:"27.0%",
-                      badge:{ bg:"rgba(249,115,22,0.12)", text:"#fdba74", border:"rgba(249,115,22,0.35)" }
+                      badge:{ bg:"rgba(249,115,22,0.12)", text:"#ea580c", border:"rgba(249,115,22,0.35)" }
                     },
                     {
                       name:"Google Support Community", pkg:"BeautifulSoup Web Scraper", color:"#6366f1",
                       fetched:"20 threads", isolated:"14 signals", rate:"70.0%",
-                      badge:{ bg:"rgba(99,102,241,0.12)", text:"#a5b4fc", border:"rgba(99,102,241,0.35)" }
+                      badge:{ bg:"rgba(99,102,241,0.12)", text:"#4f46e5", border:"rgba(99,102,241,0.35)" }
                     },
                   ].map((row, i) => (
                     <tr key={i} style={{borderBottom:"1px solid rgba(0,0,0,0.05)"}}>
@@ -551,7 +551,7 @@ export default function DiscoveryEngine() {
                       </td>
                       <td style={{padding:"16px 20px",color:"#0f172a",fontFamily:"monospace",fontSize:11}}>{row.pkg}</td>
                       <td style={{padding:"16px 20px"}}>
-                        <span style={{padding:"4px 12px",borderRadius:20,fontSize:10,fontWeight:700,fontFamily:"monospace",background:"rgba(16,185,129,0.12)",color:"#6ee7b7",border:"1px solid rgba(16,185,129,0.3)",display:"flex",alignItems:"center",gap:5,width:"fit-content"}}>
+                        <span style={{padding:"4px 12px",borderRadius:20,fontSize:10,fontWeight:700,fontFamily:"monospace",background:"rgba(16,185,129,0.12)",color:"#059669",border:"1px solid rgba(16,185,129,0.3)",display:"flex",alignItems:"center",gap:5,width:"fit-content"}}>
                           <span className="pulse-dot" style={{background:"#10b981",width:6,height:6}}/>Active
                         </span>
                       </td>
@@ -569,10 +569,10 @@ export default function DiscoveryEngine() {
               <h2 style={{fontSize:15,fontWeight:700,color:"#0f172a",marginBottom:16}}>How This Engine Works — Step by Step</h2>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:14}}>
                 {[
-                  { step:"01", color:"#22d3ee", title:"Scraping", body:"Python scrapers run daily at 02:00 AM pulling the latest feedback from all three sources filtered by search-related keywords." },
-                  { step:"02", color:"#a78bfa", title:"AI Filtering (Groq LLM)", body:"Every review is sent to the Groq API (Qwen3.8B model). Only reviews where a user is genuinely struggling to find a photo are kept. Generic complaints about UI/crashes are discarded." },
-                  { step:"03", color:"#fb923c", title:"Structured Extraction", body:"The LLM extracts: what the user remembers, what they've forgotten, what they searched for, and what type of photo they're looking for." },
-                  { step:"04", color:"#4ade80", title:"Vector Storage (ChromaDB)", body:"The extracted data is embedded using BAAI/BGE-Small-v1.5 (384 dimensions) and stored in ChromaDB. This enables semantic similarity search for the PM Copilot." },
+                  { step:"01", color:"#0891b2", title:"Scraping", body:"Python scrapers run daily at 02:00 AM pulling the latest feedback from all three sources filtered by search-related keywords." },
+                  { step:"02", color:"#7c3aed", title:"AI Filtering (Groq LLM)", body:"Every review is sent to the Groq API (Qwen3.8B model). Only reviews where a user is genuinely struggling to find a photo are kept. Generic complaints about UI/crashes are discarded." },
+                  { step:"03", color:"#d97706", title:"Structured Extraction", body:"The LLM extracts: what the user remembers, what they've forgotten, what they searched for, and what type of photo they're looking for." },
+                  { step:"04", color:"#16a34a", title:"Vector Storage (ChromaDB)", body:"The extracted data is embedded using BAAI/BGE-Small-v1.5 (384 dimensions) and stored in ChromaDB. This enables semantic similarity search for the PM Copilot." },
                 ].map(s => (
                   <div key={s.step} className="glass-card" style={{padding:20,borderTop:`2px solid ${s.color}`}}>
                     <div style={{fontFamily:"monospace",fontSize:11,color:s.color,fontWeight:700,marginBottom:10}}>STEP {s.step}</div>
@@ -589,7 +589,7 @@ export default function DiscoveryEngine() {
         {activeTab === "copilot" && (
           <div className="fade-up" style={{display:"flex",flexDirection:"column",gap:20}}>
             <div>
-              <div style={{fontSize:11,color:"#22d3ee",fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:6}}>RAG INTERFACE · ChromaDB + Groq LLM</div>
+              <div style={{fontSize:11,color:"#0891b2",fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:6}}>RAG INTERFACE · ChromaDB + Groq LLM</div>
               <h1 style={{fontSize:26,fontWeight:800,color:"#0f172a",margin:0}}>PM Copilot</h1>
               <p style={{color:"#0f172a",fontSize:13,marginTop:6}}>Ask questions about the {vectorCount} indexed user struggles in our database. The AI will retrieve the most semantically relevant reviews and synthesize an analytical answer.</p>
             </div>
@@ -599,7 +599,7 @@ export default function DiscoveryEngine() {
               {[
                 {
                   category: "🔍 Search Failure Patterns",
-                  color: "#a78bfa",
+                  color: "#7c3aed",
                   questions: [
                     "What are users saying about losing deleted photos?",
                     "How do people describe their search attempts when they fail to find a photo?",
@@ -608,7 +608,7 @@ export default function DiscoveryEngine() {
                 },
                 {
                   category: "🧠 Memory & Context Clues",
-                  color: "#22d3ee",
+                  color: "#0891b2",
                   questions: [
                     "What do users remember most when trying to find an old photo?",
                     "When users can't find a photo, what clues or descriptions do they use?",
@@ -617,7 +617,7 @@ export default function DiscoveryEngine() {
                 },
                 {
                   category: "📦 Data Loss & Deletion",
-                  color: "#fb923c",
+                  color: "#d97706",
                   questions: [
                     "What are users saying about photos that disappeared after deleting to free storage?",
                     "How do users react when backup was never confirmed and they lose photos?",
@@ -626,7 +626,7 @@ export default function DiscoveryEngine() {
                 },
                 {
                   category: "🛠️ Product Gaps & Feature Requests",
-                  color: "#4ade80",
+                  color: "#16a34a",
                   questions: [
                     "What features do users wish Google Photos had for searching?",
                     "What does the Reddit community say should be improved in Google Photos?",
@@ -679,25 +679,25 @@ export default function DiscoveryEngine() {
                       <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#7c3aed,#0e7490)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:12,flexShrink:0}}>🤖</div>
                     )}
                     <div className={msg.role==="user"?"chat-bubble-user":"chat-bubble-ai"} style={{maxWidth:"75%",padding:"12px 16px"}}>
-                      {msg.role==="user" && <div style={{fontSize:10,fontFamily:"monospace",color:"#c4b5fd",marginBottom:6,display:"flex",alignItems:"center",gap:4}}><Icon.User />Product Manager</div>}
-                      {msg.role==="assistant" && <div style={{fontSize:10,fontFamily:"monospace",color:"#22d3ee",marginBottom:6,display:"flex",alignItems:"center",gap:4}}><Icon.Cpu />AI Copilot · RAG</div>}
+                      {msg.role==="user" && <div style={{fontSize:10,fontFamily:"monospace",color:"#6d28d9",marginBottom:6,display:"flex",alignItems:"center",gap:4}}><Icon.User />Product Manager</div>}
+                      {msg.role==="assistant" && <div style={{fontSize:10,fontFamily:"monospace",color:"#0891b2",marginBottom:6,display:"flex",alignItems:"center",gap:4}}><Icon.Cpu />AI Copilot · RAG</div>}
                       <p style={{fontSize:12,lineHeight:1.7,margin:0,whiteSpace:"pre-wrap",color:msg.role==="user"?"#0f172a":"#0f172a"}}>{msg.content}</p>
                       {msg.sources && msg.sources.length > 0 && (
                         <div style={{marginTop:10,padding:"8px 12px",borderRadius:8,background:"rgba(34,211,238,0.06)",border:"1px solid rgba(34,211,238,0.15)"}}>
-                          <div style={{fontSize:10,fontFamily:"monospace",color:"#22d3ee",fontWeight:700,marginBottom:6}}>TOP GROUNDING CITATIONS FROM CHROMADB</div>
+                          <div style={{fontSize:10,fontFamily:"monospace",color:"#0891b2",fontWeight:700,marginBottom:6}}>TOP GROUNDING CITATIONS FROM CHROMADB</div>
                           {msg.sources.slice(0,2).map((s,si) => <p key={si} style={{fontSize:11,color:"#0f172a",fontStyle:"italic",margin:"4px 0"}}>&ldquo;{s}&rdquo;</p>)}
                         </div>
                       )}
                     </div>
                     {msg.role === "user" && (
-                      <div style={{width:28,height:28,borderRadius:8,background:"rgba(139,92,246,0.2)",border:"1px solid rgba(139,92,246,0.35)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#c4b5fd",flexShrink:0}}>PM</div>
+                      <div style={{width:28,height:28,borderRadius:8,background:"rgba(139,92,246,0.2)",border:"1px solid rgba(139,92,246,0.35)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#6d28d9",flexShrink:0}}>PM</div>
                     )}
                   </div>
                 ))}
                 {isTyping && (
                   <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
                     <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#7c3aed,#0e7490)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>🤖</div>
-                    <div className="chat-bubble-ai" style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#22d3ee",fontFamily:"monospace"}}>
+                    <div className="chat-bubble-ai" style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#0891b2",fontFamily:"monospace"}}>
                       <Icon.Loader /> Searching vectors...
                     </div>
                   </div>
