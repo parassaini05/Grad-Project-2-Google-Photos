@@ -116,7 +116,7 @@ export default function DiscoveryEngine() {
     } catch (err: any) {
       setChatHistory(prev => [...prev, {
         role: "assistant",
-        content: `⚠️ Backend Error: ${err.message}. Make sure your API keys (like GEMINI_API_KEY) are set correctly in Railway!`,
+        content: `⚠️ Backend Error: ${err.message}. Make sure your GROQ_API_KEY is set correctly in Railway!`,
       }]);
     } finally {
       setIsTyping(false);
