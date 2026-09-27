@@ -3,23 +3,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import chromadb
 from chromadb.utils import embedding_functions
+from google import genai
 import os
 from dotenv import load_dotenv
-from groq import Groq
 
 # Load Env
 load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-if not GROQ_API_KEY:
-    print("Warning: GROQ_API_KEY not found in environment.")
+if not GEMINI_API_KEY:
+    print("Warning: GEMINI_API_KEY not found in environment.")
 
-groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 # Initialize FastAPI
 app = FastAPI(
     title="AI Discovery Engine Backend",
-    description="Backend API for querying ChromaDB and synthesizing insights using Groq RAG.",
+    description="Backend API for querying ChromaDB and synthesizing insights using Gemini RAG.",
     version="1.0.0"
 )
 
@@ -61,9 +61,9 @@ def get_db_stats():
 
 @app.post("/api/rag", response_model=QueryResponse)
 def run_rag_query(request: QueryRequest):
-    """Retrieves context from ChromaDB and synthesizes an answer using Groq."""
-    if not groq_client:
-        raise HTTPException(status_code=500, detail="Groq API key is not configured.")
+    """Retrieves context from ChromaDB and synthesizes an answer using Gemini."""
+    if not gemini_client:
+        raise HTTPException(status_code=500, detail="Gemini API key is not configured.")
         
     prompt = request.prompt
     
@@ -96,16 +96,11 @@ def run_rag_query(request: QueryRequest):
     """
 
     try:
-        response = groq_client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": augmented_prompt,
-                }
-            ],
-            model="qwen/qwen3.8-27b",
+        response = gemini_client.models.generate_content(
+            model='gemini-3.8-flash',
+            contents=augmented_prompt
         )
-        synthesis = response.choices[0].message.content
+        synthesis = response.text
         return QueryResponse(synthesis=synthesis, sources=context_docs)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Groq API synthesis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Gemini API synthesis failed: {e}")
