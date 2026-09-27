@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 
 // Icons as inline SVGs to avoid import issues
 const Icon = {
@@ -684,7 +685,31 @@ export default function DiscoveryEngine() {
                     <div className={msg.role==="user"?"chat-bubble-user":"chat-bubble-ai"} style={{maxWidth:"75%",padding:"12px 16px"}}>
                       {msg.role==="user" && <div style={{fontSize:10,fontFamily:"monospace",color:"#6d28d9",marginBottom:6,display:"flex",alignItems:"center",gap:4}}><Icon.User />Product Manager</div>}
                       {msg.role==="assistant" && <div style={{fontSize:10,fontFamily:"monospace",color:"#0891b2",marginBottom:6,display:"flex",alignItems:"center",gap:4}}><Icon.Cpu />AI Copilot · RAG</div>}
-                      <p style={{fontSize:12,lineHeight:1.7,margin:0,whiteSpace:"pre-wrap",color:msg.role==="user"?"#0f172a":"#0f172a"}}>{msg.content}</p>
+                      <div style={{fontSize:12,lineHeight:1.7,color:"#0f172a",whiteSpace:msg.role==="user"?"pre-wrap":"normal"}}>
+                        {msg.role === "user" ? (
+                          <p style={{margin:0}}>{msg.content}</p>
+                        ) : (
+                          <div className="markdown-body">
+                            <ReactMarkdown 
+                              components={{
+                                p: ({node, ...props}) => <p style={{margin:"0 0 10px 0"}} {...props} />,
+                                h1: ({node, ...props}) => <h1 style={{margin:"16px 0 8px 0",fontSize:18,fontWeight:800}} {...props} />,
+                                h2: ({node, ...props}) => <h2 style={{margin:"16px 0 8px 0",fontSize:16,fontWeight:800}} {...props} />,
+                                h3: ({node, ...props}) => <h3 style={{margin:"14px 0 6px 0",fontSize:14,fontWeight:700}} {...props} />,
+                                ul: ({node, ...props}) => <ul style={{margin:"0 0 10px 0",paddingLeft:20,listStyleType:"disc"}} {...props} />,
+                                ol: ({node, ...props}) => <ol style={{margin:"0 0 10px 0",paddingLeft:20,listStyleType:"decimal"}} {...props} />,
+                                li: ({node, ...props}) => <li style={{marginBottom:4}} {...props} />,
+                                strong: ({node, ...props}) => <strong style={{fontWeight:700}} {...props} />,
+                                em: ({node, ...props}) => <em style={{fontStyle:"italic"}} {...props} />,
+                                code: ({node, ...props}) => <code style={{background:"rgba(0,0,0,0.05)",padding:"2px 4px",borderRadius:4,fontFamily:"monospace",fontSize:11,color:"#db2777"}} {...props} />,
+                                hr: ({node, ...props}) => <hr style={{margin:"16px 0",border:"none",borderTop:"1px solid rgba(0,0,0,0.1)"}} {...props} />
+                              }}
+                            >
+                              {msg.content}
+                            </ReactMarkdown>
+                          </div>
+                        )}
+                      </div>
                       {msg.sources && msg.sources.length > 0 && (
                         <div style={{marginTop:10,padding:"8px 12px",borderRadius:8,background:"rgba(34,211,238,0.06)",border:"1px solid rgba(34,211,238,0.15)"}}>
                           <div style={{fontSize:10,fontFamily:"monospace",color:"#0891b2",fontWeight:700,marginBottom:6}}>TOP GROUNDING CITATIONS FROM CHROMADB</div>
