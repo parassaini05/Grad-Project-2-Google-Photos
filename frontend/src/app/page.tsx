@@ -105,15 +105,18 @@ export default function DiscoveryEngine() {
         body: JSON.stringify({ prompt: query }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "API Error");
+      }
       setChatHistory(prev => [...prev, {
         role: "assistant",
         content: data.synthesis || "No response received.",
         sources: data.sources || [],
       }]);
-    } catch {
+    } catch (err: any) {
       setChatHistory(prev => [...prev, {
         role: "assistant",
-        content: `⚠️ Could not connect to the backend (${process.env.NEXT_PUBLIC_API_URL || "localhost:8000"}). Make sure it is running.`,
+        content: `⚠️ Backend Error: ${err.message}. Make sure your API keys (like GEMINI_API_KEY) are set correctly in Railway!`,
       }]);
     } finally {
       setIsTyping(false);

@@ -97,7 +97,7 @@ def run_rag_query(request: QueryRequest):
 
     try:
         response = gemini_client.models.generate_content(
-            model='gemini-3.8-flash',
+            model='gemini-1.5-flash',
             contents=augmented_prompt
         )
         synthesis = response.text
