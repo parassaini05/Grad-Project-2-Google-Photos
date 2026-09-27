@@ -3,18 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import chromadb
 from chromadb.utils import embedding_functions
-from google import genai
 import os
 from dotenv import load_dotenv
+from groq import Groq
 
 # Load Env
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-if not GEMINI_API_KEY:
-    print("Warning: GEMINI_API_KEY not found in environment.")
+if not GROQ_API_KEY:
+    print("Warning: GROQ_API_KEY not found in environment.")
 
-gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # Initialize FastAPI
 app = FastAPI(
@@ -61,9 +61,9 @@ def get_db_stats():
 
 @app.post("/api/rag", response_model=QueryResponse)
 def run_rag_query(request: QueryRequest):
-    """Retrieves context from ChromaDB and synthesizes an answer using Gemini."""
-    if not gemini_client:
-        raise HTTPException(status_code=500, detail="Gemini API key is not configured.")
+    """Retrieves context from ChromaDB and synthesizes an answer using Groq."""
+    if not groq_client:
+        raise HTTPException(status_code=500, detail="Groq API key is not configured.")
         
     prompt = request.prompt
     
@@ -96,11 +96,16 @@ def run_rag_query(request: QueryRequest):
     """
 
     try:
-        response = gemini_client.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=augmented_prompt
+        response = groq_client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": augmented_prompt,
+                }
+            ],
+            model="llama-3.1-8b-instant",
         )
-        synthesis = response.text
+        synthesis = response.choices[0].message.content
         return QueryResponse(synthesis=synthesis, sources=context_docs)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Gemini API synthesis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Groq API synthesis failed: {e}")
